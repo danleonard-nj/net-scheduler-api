@@ -1,0 +1,51 @@
+replicaCount: 1
+
+image:
+  repository: azureks.azurecr.io/kube-tools/net-scheduler
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets:
+  - name: regcred
+
+nameOverride: "net-scheduler"
+fullnameOverride: "net-scheduler"
+
+environment:
+  envFrom:
+    - secretName: azure
+    - secretName: scheduler-env
+   
+probes:
+  endpoints:
+    liveness: "/api/health/alive"
+    readiness: "/api/health/ready"
+  initialDelay: 5
+  interval: 10
+  timeout: 120
+  
+serviceAccount:
+  create: true
+  name: "net-scheduler"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 300Mi
+  requests:
+    cpu: 100m
+    memory: 300Mi
+    
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80

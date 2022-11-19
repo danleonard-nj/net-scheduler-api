@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32014.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "net-scheduler", "net-scheduler\net-scheduler.csproj", "{B5E241A5-C47B-4B99-A842-815AA7284C9F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "net-scheduler-tests", "net-scheduler-tests\net-scheduler-tests.csproj", "{4747080D-15E4-4A5B-A78C-F37FA7932E9A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B5E241A5-C47B-4B99-A842-815AA7284C9F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5E241A5-C47B-4B99-A842-815AA7284C9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5E241A5-C47B-4B99-A842-815AA7284C9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5E241A5-C47B-4B99-A842-815AA7284C9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4747080D-15E4-4A5B-A78C-F37FA7932E9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4747080D-15E4-4A5B-A78C-F37FA7932E9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4747080D-15E4-4A5B-A78C-F37FA7932E9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4747080D-15E4-4A5B-A78C-F37FA7932E9A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {074B76BB-4F6D-46DD-BF7A-801F7FB28A2A}
+	EndGlobalSection
+EndGlobal
