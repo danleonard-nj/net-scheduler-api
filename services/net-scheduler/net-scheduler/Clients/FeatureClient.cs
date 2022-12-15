@@ -37,7 +37,7 @@ public class FeatureClient : IFeatureClient
         var feature = await _flurlClient
             .Request("api/feature/evaluate")
             .AppendPathSegment(featureKey)
-            .WithHeader("api-key", _configuration.ApiKey)
+            .WithHeader("X-Api-Key", _configuration.ApiKey)
             .GetJsonAsync<EvaluateFeatureResponseModel>();
 
         _logger.LogInformation(
