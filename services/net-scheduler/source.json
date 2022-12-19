@@ -1,0 +1,6 @@
+[
+    {
+        "source" : "configs/kube-tools/net-scheduler/appsettings.json",
+        "target" : "services/net-scheduler/net-scheduler/appsettings.json"
+    }
+]
