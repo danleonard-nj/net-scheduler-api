@@ -29,6 +29,11 @@ public class FeatureClient : IFeatureClient
 
     public async Task<bool> EvaluateFeature(string featureKey)
     {
+        if (string.IsNullOrWhiteSpace(featureKey))
+        {
+            throw new ArgumentNullException(nameof(featureKey));
+        }
+
         _logger.LogInformation(
             "{@Method}: {@FeatureKey}: Evaluating feature",
             Caller.GetName(),
@@ -37,7 +42,7 @@ public class FeatureClient : IFeatureClient
         var feature = await _flurlClient
             .Request("api/feature/evaluate")
             .AppendPathSegment(featureKey)
-            .WithHeader("X-Api-Key", _configuration.ApiKey)
+            .WithHeader(_configuration.ApiKeyHeader, _configuration.ApiKey)
             .GetJsonAsync<EvaluateFeatureResponseModel>();
 
         _logger.LogInformation(
