@@ -35,8 +35,10 @@ public class FeatureClient : IFeatureClient
         }
 
         _logger.LogInformation(
-            "{@Method}: {@FeatureKey}: Evaluating feature",
+            "{@Method}: {@FeatureHeaderKey}: {@FeatureApiKey}: {@FeatureKey}: Evaluating feature",
             Caller.GetName(),
+            _configuration.ApiKeyHeader,
+            _configuration.ApiKey,
             featureKey);
 
         var feature = await _flurlClient
