@@ -1,13 +1,10 @@
 ﻿namespace NetScheduler.Services.Schedules;
 
 using Microsoft.Extensions.Caching.Distributed;
-using MongoDB.Bson.Serialization.Conventions;
 using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
-using NetScheduler.Data.Entities;
-using NetScheduler.Models.Cache;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
 using NetScheduler.Services.Extensions;
@@ -15,9 +12,7 @@ using NetScheduler.Services.Schedules.Abstractions;
 using NetScheduler.Services.Schedules.Exceptions;
 using NetScheduler.Services.Schedules.Extensions;
 using NetScheduler.Services.Tasks.Abstractions;
-using System.Net.Mail;
 using System.Threading.Tasks;
-using System.Xml.Schema;
 
 public class ScheduleService : IScheduleService
 {
@@ -280,10 +275,6 @@ public class ScheduleService : IScheduleService
 
         if (schedule.Links != null && schedule.Links.Any())
         {
-            await _distributedCache.RemoveAsync(
-                CacheKey.ScheduleList,
-                token);
-
             var executionTasks = schedule
                 .Links
                 .Select(async taskId =>
@@ -306,22 +297,64 @@ public class ScheduleService : IScheduleService
         }
     }
 
+    private async Task ForceUpdateScheduleTimestamps(CancellationToken token)
+    {
+        var scheduleEntities = await _scheduleRepository
+            .GetAll(token);
+
+        var allSchedulees = scheduleEntities
+            .Select(x => x.ToDomain());
+
+        foreach (var forceUpdateSchedule in allSchedulees)
+        {
+            var updaatedSchedule = UpdateScheduleRuntimes(forceUpdateSchedule);
+
+            await _scheduleRepository.Replace(
+                updaatedSchedule.ToEntity(),
+                token);
+        }
+    }
+
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
         _logger.LogInformation(
            "{@Method}: Polling schedule states",
            Caller.GetName());
 
-        var isEnabled = await _featureClient.EvaluateFeature(
+        var isNetSchedulerEnabled = await _featureClient.EvaluateFeature(
             Feature.NetScheduler);
 
-        if (!isEnabled)
+        _logger.LogInformation(
+              "{@Method}: {@FeatureKey}: {@FeatureValue}",
+              Caller.GetName(),
+              Feature.NetScheduler,
+              isNetSchedulerEnabled);
+
+        if (!isNetSchedulerEnabled)
         {
             _logger.LogInformation(
                "{@Method}: Scheduler is disabled",
                Caller.GetName());
 
             return Enumerable.Empty<TaskExecutionResult>();
+        }
+
+        var forceCalculateTimestamps = await _featureClient.EvaluateFeature(
+            Feature.NetSchedulerCalculateTimestamps);
+
+        _logger.LogInformation(
+              "{@Method}: {@FeatureKey}: {@FeatureValue}",
+              Caller.GetName(),
+              Feature.NetSchedulerCalculateTimestamps,
+              forceCalculateTimestamps);
+
+        if (forceCalculateTimestamps)
+        {
+            _logger.LogInformation(
+              "{@Method}: Force updating schedule timestamps",
+              Caller.GetName());
+
+            await ForceUpdateScheduleTimestamps(token);
         }
 
         // Get all currently active schedules
@@ -435,16 +468,18 @@ public class ScheduleService : IScheduleService
         var expression = schedule.GetCronExpression();
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(
-            "Mountain Standard Time");
+            "America/Phoenix");
 
-        var queue = expression.GetOccurrences(
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddDays(7),
-            timeZone);
+        var dateQueue = expression
+            .GetOccurrences(
+                DateTime.UtcNow,
+                DateTime.UtcNow + TimeSpan.FromDays(7),
+                timeZone);
 
-        schedule.Queue = queue.Take(5)
-            .Select(x => (int)new DateTimeOffset(x)
+        var queue = dateQueue.Select(x => (int)new DateTimeOffset(x)
             .ToUnixTimeSeconds());
+
+        schedule.Queue = queue.Take(5);
 
         _logger.LogInformation(
             "{@Method}: {@ScheduleId}: {@ScheduleName}: {@RuntimeQueue}: Schedule runtimes",
@@ -453,9 +488,7 @@ public class ScheduleService : IScheduleService
             schedule.ScheduleName,
             schedule.Queue);
 
-        schedule.NextRuntime = (int)new DateTimeOffset(queue
-            .FirstOrDefault())
-            .ToUnixTimeSeconds();
+        schedule.NextRuntime = queue.FirstOrDefault();
 
         _logger.LogInformation(
             "{@Method}: {@ScheduleId}: {@ScheduleName}: {@NextRuntime}: {@TimeRemaining}: Next schedule runtime",
