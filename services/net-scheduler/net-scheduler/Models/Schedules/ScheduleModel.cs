@@ -1,25 +1,27 @@
 ﻿namespace NetScheduler.Models.Schedules;
 public class ScheduleModel
 {
-    public string? ScheduleId { get; set; }
+    public string ScheduleId { get; set; } = null!;
 
     public string? ScheduleTypeId { get; set; }
 
-    public string? ScheduleName { get; set; }
+    public string ScheduleName { get; set; } = null!;
 
-    public string? Cron { get; set; }
+    public string Cron { get; set; } = null!;
 
     public bool IncludeSeconds { get; set; } = false;
 
-    public DateTimeOffset? LastRuntime { get; set; }
+    public int LastRuntime { get; set; }
 
     public IEnumerable<string> Links { get; set; } = Enumerable.Empty<string>();
 
-    public DateTimeOffset? NextRuntime { get; set; }
+    public int NextRuntime { get; set; }
 
-    public IEnumerable<DateTimeOffset> Queue { get; set; } = Enumerable.Empty<DateTimeOffset>();
+    public IEnumerable<int> Queue { get; set; } = Enumerable.Empty<int>();
 
     public bool? IsActive { get; set; }
 
-    public DateTime UpdatedDateTime { get; set; }
+    public DateTime ModifiedDate { get; set; }
+
+    public DateTime CreatedDate { get; set; }
 }

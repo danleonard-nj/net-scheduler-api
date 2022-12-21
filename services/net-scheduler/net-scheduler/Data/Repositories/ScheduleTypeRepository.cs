@@ -2,14 +2,14 @@
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using NetScheduler.Data.Abstractions;
-using NetScheduler.Data.Models;
+using NetScheduler.Data.Entities;
 
-public class ScheduleTypeRepository : IMongoRepository<ScheduleType>
+public class ScheduleTypeRepository : IMongoRepository<ScheduleTypeItem>
 {
 
     private readonly IMongoDatabase _database;
-    private readonly IMongoCollection<ScheduleType> _collection;
-    private readonly IMongoQueryable<ScheduleType> _query;
+    private readonly IMongoCollection<ScheduleTypeItem> _collection;
+    private readonly IMongoQueryable<ScheduleTypeItem> _query;
     private readonly ILogger<ScheduleTypeRepository> _logger;
 
 
@@ -18,7 +18,7 @@ public class ScheduleTypeRepository : IMongoRepository<ScheduleType>
         ILogger<ScheduleTypeRepository> logger)
     {
         _database = mongoClient.GetDatabase("Schedule");
-        _collection = _database.GetCollection<ScheduleType>("ScheduleType");
+        _collection = _database.GetCollection<ScheduleTypeItem>("ScheduleType");
         _query = _collection.AsQueryable();
         _logger = logger;
     }
@@ -28,22 +28,22 @@ public class ScheduleTypeRepository : IMongoRepository<ScheduleType>
         throw new NotImplementedException();
     }
 
-    public Task<ScheduleType> Get(string id, CancellationToken token)
+    public Task<ScheduleTypeItem> Get(string id, CancellationToken token)
     {
         throw new NotImplementedException();
     }
 
-    public Task<IEnumerable<ScheduleType>> GetAll(CancellationToken token)
+    public Task<IEnumerable<ScheduleTypeItem>> GetAll(CancellationToken token)
     {
         throw new NotImplementedException();
     }
 
-    public Task<ScheduleType> Insert(ScheduleType entity, CancellationToken token)
+    public Task<ScheduleTypeItem> Insert(ScheduleTypeItem entity, CancellationToken token)
     {
         throw new NotImplementedException();
     }
 
-    public Task<ScheduleType> Update(ScheduleType entity, CancellationToken token)
+    public Task<ScheduleTypeItem> Replace(ScheduleTypeItem entity, CancellationToken token)
     {
         throw new NotImplementedException();
     }

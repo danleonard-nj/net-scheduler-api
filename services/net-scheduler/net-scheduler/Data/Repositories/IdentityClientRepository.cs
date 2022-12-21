@@ -2,7 +2,7 @@
 using MongoDB.Driver;
 using NetScheduler.Data.Abstractions;
 using NetScheduler.Data.Constants;
-using NetScheduler.Data.Models;
+using NetScheduler.Data.Entities;
 
 public class IdentityClientRepository : IMongoRepository<IdentityClient>, IIdentityClientRepository
 {
@@ -60,7 +60,7 @@ public class IdentityClientRepository : IMongoRepository<IdentityClient>, IIdent
         return entity;
     }
 
-    public async Task<IdentityClient> Update(IdentityClient entity, CancellationToken token)
+    public async Task<IdentityClient> Replace(IdentityClient entity, CancellationToken token)
     {
         await _collection.ReplaceOneAsync(
             x => x.IdentityClientId == entity.IdentityClientId,

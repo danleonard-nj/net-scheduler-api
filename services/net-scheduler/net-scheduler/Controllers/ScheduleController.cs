@@ -94,11 +94,22 @@ public class ScheduleController : ControllerBase
 
     [HttpPut]
     [Authorize(AuthScheme.Write)]
-    public async Task<IActionResult> UpsertSchedule(ScheduleModel scheduleModel, CancellationToken token)
+    public async Task<IActionResult> UpdateSchedule(ScheduleModel scheduleModel, CancellationToken token)
     {
-        var schedule = await _scheduleService.UpsertSchedule(scheduleModel, token);
+        try
+        {
+            var schedule = await _scheduleService.UpdateSchedule(
+                scheduleModel,
+                token);
 
-        return Ok(schedule);
+            return Ok(schedule);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(
+                (int)HttpStatusCode.InternalServerError,
+                new { ex.Message });
+        }
     }
 
     [HttpGet("Poll")]

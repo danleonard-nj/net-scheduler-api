@@ -1,4 +1,4 @@
-﻿namespace NetScheduler.Data.Models;
+﻿namespace NetScheduler.Data.Entities;
 
 using MongoDB.Bson.Serialization.Attributes;
 

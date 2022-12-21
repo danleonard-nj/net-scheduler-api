@@ -14,7 +14,7 @@ public interface IScheduleService
 
     Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token);
 
-    Task<ScheduleModel> UpsertSchedule(ScheduleModel scheduleModel, CancellationToken token);
+    Task<ScheduleModel> UpdateSchedule(ScheduleModel scheduleModel, CancellationToken token);
 
     Task RunSchedule(string scheduleId, CancellationToken token);
 }

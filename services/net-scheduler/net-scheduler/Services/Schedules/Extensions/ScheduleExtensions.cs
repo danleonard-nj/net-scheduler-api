@@ -1,6 +1,6 @@
 ﻿namespace NetScheduler.Services.Schedules.Extensions;
 using Cronos;
-using NetScheduler.Data.Models;
+using NetScheduler.Data.Entities;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
 using NetScheduler.Services.Extensions;
@@ -8,7 +8,7 @@ using System.Text.Json;
 
 public static class ScheduleExtensions
 {
-    public static ScheduleModel ToDomain(this Schedule schedule)
+    public static ScheduleModel ToDomain(this ScheduleItem schedule)
     {
         return new ScheduleModel
         {
@@ -16,16 +16,16 @@ public static class ScheduleExtensions
             ScheduleName = schedule.ScheduleName,
             Cron = schedule.Cron,
             IncludeSeconds = schedule.IncludeSeconds,
-            LastRuntime = schedule.LastRuntime?.ToLocalDateTime(),
-            NextRuntime = schedule.NextRuntime?.ToLocalDateTime(),
+            LastRuntime = schedule.LastRuntime,
+            NextRuntime = schedule.NextRuntime,
             Links = schedule.Links,
-            Queue = schedule.Queue.Select(x => x.ToLocalDateTime()),
-            UpdatedDateTime = schedule.UpdateDateTime,
+            Queue = schedule.Queue,
+            ModifiedDate = schedule.ModifiedDate,
             IsActive = schedule.IsActive
         };
     }
 
-    public static ScheduleTaskModel ToDomain(this ScheduleTask scheduleAction)
+    public static ScheduleTaskModel ToDomain(this ScheduleTaskItem scheduleAction)
     {
         return new ScheduleTaskModel
         {
@@ -62,32 +62,32 @@ public static class ScheduleExtensions
         };
     }
 
-    public static Schedule ToSchedule(this ScheduleModel scheduleModel)
+    public static ScheduleItem ToEntity(this ScheduleModel scheduleModel)
     {
         ArgumentNullException.ThrowIfNull(scheduleModel, nameof(scheduleModel));
 
-        return new Schedule
+        return new ScheduleItem
         {
-            ScheduleName = scheduleModel?.ScheduleName,
-            ScheduleId = scheduleModel?.ScheduleId,
+            ScheduleName = scheduleModel.ScheduleName,
+            ScheduleId = scheduleModel.ScheduleId,
             IncludeSeconds = scheduleModel.IncludeSeconds,
             Cron = scheduleModel.Cron,
-            LastRuntime = (int?)scheduleModel.LastRuntime?.ToUnixTimeSeconds(),
-            NextRuntime = (int?)scheduleModel.NextRuntime?.ToUnixTimeSeconds(),
+            LastRuntime = scheduleModel.LastRuntime,
+            NextRuntime = scheduleModel.NextRuntime,
             Links = scheduleModel.Links,
-            Queue = scheduleModel.Queue.Select(x => (int)x.ToUnixTimeSeconds()),
-            UpdateDateTime = scheduleModel.UpdatedDateTime,
+            Queue = scheduleModel.Queue,
+            ModifiedDate = scheduleModel.ModifiedDate,
             IsActive = scheduleModel.IsActive
         };
     }
 
-    public static ScheduleTask ToScheduleTask(
+    public static ScheduleTaskItem ToScheduleTask(
         this ScheduleTaskModel scheduleActionModel,
         string? taskId = null)
     {
         ArgumentNullException.ThrowIfNull(scheduleActionModel, nameof(scheduleActionModel));
 
-        return new ScheduleTask
+        return new ScheduleTaskItem
         {
             Endpoint = scheduleActionModel.Endpoint,
             IdentityClientId = scheduleActionModel.IdentityClientId,
@@ -100,7 +100,7 @@ public static class ScheduleExtensions
         };
     }
 
-    public static CronExpression GetCronExpression(this Schedule schedule)
+    public static CronExpression GetCronExpression(this ScheduleModel schedule)
     {
         var cronFormat = schedule.IncludeSeconds
             ? CronFormat.IncludeSeconds
@@ -109,16 +109,22 @@ public static class ScheduleExtensions
         return CronExpression.Parse(schedule.Cron, cronFormat);
     }
 
-    public static bool GetScheduleInvocationState(this Schedule schedule)
+    public static bool GetScheduleInvocationState(this ScheduleModel schedule)
     {
-        return schedule.NextRuntime != null && DateTimeOffset.UtcNow
+        return schedule.NextRuntime != default && DateTimeOffset.UtcNow
             .ToUnixTimeSeconds() >= schedule.NextRuntime;
     }
 
-    public static void UpdateLastRuntime(this Schedule schedule)
+    public static void UpdateLastRuntime(this ScheduleModel schedule)
     {
-        schedule.LastRuntime = (int?)DateTimeOffset
+        schedule.LastRuntime = (int)DateTimeOffset
             .UtcNow
             .ToUnixTimeSeconds();
+    }
+
+    public static TimeSpan GetTimeRemaining(this ScheduleModel schedule)
+    {
+        return DateTimeOffset.FromUnixTimeSeconds(
+            schedule.NextRuntime) - DateTimeOffset.UtcNow;
     }
 }

@@ -116,7 +116,7 @@ public class TaskService : ITaskService
 
                 var task = scheduleTaskModel.ToScheduleTask();
 
-                var updatedSchedule = await _scheduleTaskRepository.Update(
+                var updatedSchedule = await _scheduleTaskRepository.Replace(
                     task,
                     token);
 

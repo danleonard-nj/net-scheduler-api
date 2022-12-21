@@ -1,8 +1,8 @@
-﻿namespace NetScheduler.Data.Models;
+﻿namespace NetScheduler.Data.Entities;
 
 using MongoDB.Bson.Serialization.Attributes;
 
-public class ScheduleTask : MongoBase
+public class ScheduleTaskItem : MongoBase
 {
     [BsonElement("endpoint")]
     public string? Endpoint { get; set; }

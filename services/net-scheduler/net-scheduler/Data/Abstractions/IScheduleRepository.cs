@@ -1,18 +1,19 @@
 ﻿namespace NetScheduler.Data.Abstractions;
-using NetScheduler.Data.Models;
+
+using NetScheduler.Data.Entities;
 using System.Linq.Expressions;
 
 public interface IScheduleRepository
 {
     Task<int> Delete(string id, CancellationToken token);
 
-    Task<Schedule> Get(string id, CancellationToken token);
+    Task<ScheduleItem> Get(string id, CancellationToken token);
 
-    Task<IEnumerable<Schedule>> GetAll(CancellationToken token);
+    Task<IEnumerable<ScheduleItem>> GetAll(CancellationToken token);
 
-    Task<Schedule> Insert(Schedule entity, CancellationToken token);
+    Task<ScheduleItem> Insert(ScheduleItem entity, CancellationToken token);
 
-    Task<Schedule> Update(Schedule entity, CancellationToken token);
+    Task<ScheduleItem> Replace(ScheduleItem entity, CancellationToken token);
 
-    Task<IEnumerable<Schedule>> Query(Expression<Func<Schedule, bool>> query, CancellationToken token);
+    Task<IEnumerable<ScheduleItem>> Query(Expression<Func<ScheduleItem, bool>> query, CancellationToken token);
 }

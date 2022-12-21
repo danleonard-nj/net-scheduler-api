@@ -1,4 +1,5 @@
-﻿using NetScheduler.Data.Models;
+﻿using NetScheduler.Data.Entities;
+using NetScheduler.Models.Schedules;
 using NetScheduler.Services.Schedules.Extensions;
 using System;
 using Xunit;
@@ -52,12 +53,12 @@ public class ScheduleExtensionsTests
     public void GetScheduleInvocationStateTest()
     {
         // Arrange
-        var schedule = new Schedule
+        var schedule = new ScheduleModel
         {
-            LastRuntime = (int?)DateTimeOffset.Now
+            LastRuntime = (int)DateTimeOffset.Now
                 .AddMinutes(-10)
                 .ToUnixTimeSeconds(),
-            NextRuntime = (int?)DateTimeOffset.Now
+            NextRuntime = (int)DateTimeOffset.Now
                 .AddMinutes(-5)
                 .ToUnixTimeSeconds()
         };
@@ -73,9 +74,9 @@ public class ScheduleExtensionsTests
     public void UpdateLastRuntimeTest()
     {
         // Arrange
-        var schedule = new Schedule
+        var schedule = new ScheduleModel
         {
-            LastRuntime = null
+            LastRuntime = default
         };
 
         // Act

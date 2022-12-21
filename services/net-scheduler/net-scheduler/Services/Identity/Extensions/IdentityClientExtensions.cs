@@ -1,7 +1,7 @@
-﻿using NetScheduler.Data.Models;
+﻿using NetScheduler.Data.Entities;
 using NetScheduler.Models.Identity;
 
-namespace NetScheduler.Services.Extensions;
+namespace NetScheduler.Services.Identity.Extensions;
 
 public static class IdentityClientExtensions
 {

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NetScheduler.Clients.Abstractions;
 using NetScheduler.Data.Abstractions;
-using NetScheduler.Data.Models;
+using NetScheduler.Data.Entities;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Services.Schedules;
 using NetScheduler.Services.Schedules.Extensions;
@@ -52,7 +52,7 @@ namespace NetScheduler.Tests.Services
         public async Task GetSchedule_GivenValidScheduleId_ReturnsSchedule()
         {
             // Arrange
-            var mockSchedule = _autoFixture.Create<Schedule>();
+            var mockSchedule = _autoFixture.Create<ScheduleItem>();
 
             _mockScheduleRepository
                 .Setup(x => x.Get(
@@ -98,7 +98,7 @@ namespace NetScheduler.Tests.Services
         {
             // Arrange
             var mockSchedules = _autoFixture
-                .CreateMany<Schedule>();
+                .CreateMany<ScheduleItem>();
 
             _mockScheduleRepository
                 .Setup(x => x.GetAll(
@@ -125,7 +125,7 @@ namespace NetScheduler.Tests.Services
                 .Create<ScheduleModel>();
 
             var mockSchedule = mockScheduleModel
-                .ToSchedule();
+                .ToEntity();
 
             _mockScheduleRepository
                 .Setup(x => x.Get(
@@ -134,20 +134,20 @@ namespace NetScheduler.Tests.Services
                 .ReturnsAsync(mockSchedule);
 
             _mockScheduleRepository
-                .Setup(x => x.Update(
-                    It.IsAny<Schedule>(),
+                .Setup(x => x.Replace(
+                    It.IsAny<ScheduleItem>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(mockSchedule);
 
             // Act
-            var result = await _scheduleService.UpsertSchedule(
+            var result = await _scheduleService.UpdateSchedule(
                 mockScheduleModel,
                 default);
 
             // Assert
             _mockScheduleRepository
-                .Verify(x => x.Update(
-                    It.IsAny<Schedule>(),
+                .Verify(x => x.Replace(
+                    It.IsAny<ScheduleItem>(),
                     It.IsAny<CancellationToken>()),
                         Times.Once());
         }
@@ -160,7 +160,7 @@ namespace NetScheduler.Tests.Services
                 .ToString();
 
             var mockSchedule = _autoFixture
-                .Create<Schedule>();
+                .Create<ScheduleItem>();
 
             _mockScheduleRepository
                 .Setup(x => x.Get(
@@ -192,7 +192,7 @@ namespace NetScheduler.Tests.Services
                 .CreateMany<string>(10);
 
             var mockScheduleToRun = _autoFixture
-                .Build<Schedule>()
+                .Build<ScheduleItem>()
                 .With(x => x.Links, links)
                 .Create();
 
@@ -231,7 +231,7 @@ namespace NetScheduler.Tests.Services
                 .ToUnixTimeSeconds();
 
             var schedulesToRun = _autoFixture
-                .Build<Schedule>()
+                .Build<ScheduleItem>()
                     .With(x => x.NextRuntime, (int?)nextRuntime)
                     .With(x => x.Cron, "* * * * *")
                     .With(x => x.IncludeSeconds, false)
@@ -241,7 +241,7 @@ namespace NetScheduler.Tests.Services
                 .ToList();
 
             var schedulesNotToRun = _autoFixture
-                .Build<Schedule>()
+                .Build<ScheduleItem>()
                     .With(x => x.NextRuntime, (int?)futureRuntime)
                     .With(x => x.Cron, "* * * * *")
                     .With(x => x.IncludeSeconds, false)
@@ -284,7 +284,7 @@ namespace NetScheduler.Tests.Services
                 .ToUnixTimeSeconds();
 
             var schedule = _autoFixture
-                .Build<Schedule>()
+                .Build<ScheduleItem>()
                     .With(x => x.Cron, "* * * * *")
                     .With(x => x.IncludeSeconds, false)
                     .With(x => x.NextRuntime, (int?)nextRuntime)
@@ -323,8 +323,8 @@ namespace NetScheduler.Tests.Services
                     .ToUnixTimeSeconds());
 
             _mockScheduleRepository
-                .Verify(x => x.Update(
-                    It.IsAny<Schedule>(),
+                .Verify(x => x.Replace(
+                    It.IsAny<ScheduleItem>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once());
         }
@@ -333,15 +333,15 @@ namespace NetScheduler.Tests.Services
         public async Task PollSchedules_GivenNullNextRuntime_UpdatesScheduleValues()
         {
             // Arrange
-            var schedule = new Schedule
+            var schedule = new ScheduleItem
             {
                 ScheduleId = Guid.NewGuid().ToString(),
                 ScheduleName = Guid.NewGuid().ToString(),
                 IncludeSeconds = false,
                 Cron = "* * * * *",
                 Links = Enumerable.Empty<string>(),
-                LastRuntime = null,
-                NextRuntime = null,
+                LastRuntime = default,
+                NextRuntime = default,
                 Queue = Enumerable.Empty<int>(),
             };
 
@@ -359,8 +359,8 @@ namespace NetScheduler.Tests.Services
             var result = await _scheduleService.Poll(default);
 
             // Assert
-            _mockScheduleRepository.Verify(x => x.Update(
-                It.Is<Schedule>(x => x.NextRuntime != null),
+            _mockScheduleRepository.Verify(x => x.Replace(
+                It.Is<ScheduleItem>(x => x.NextRuntime != null),
                 It.IsAny<CancellationToken>()),
                     Times.Once());
         }
@@ -375,12 +375,12 @@ namespace NetScheduler.Tests.Services
                 .AddMinutes(60)
                 .ToUnixTimeSeconds();
 
-            var schedule = new Schedule
+            var schedule = new ScheduleItem
             {
                 ScheduleId = Guid.NewGuid().ToString(),
                 IncludeSeconds = false,
                 Cron = "* * * * *",
-                NextRuntime = (int?)nextRuntime
+                NextRuntime = (int)nextRuntime
             };
 
             _mockFeatureClient

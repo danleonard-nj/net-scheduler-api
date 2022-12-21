@@ -4,7 +4,7 @@ public interface IMongoRepository<T>
 {
     Task<T> Get(string id, CancellationToken token);
 
-    Task<T> Update(T entity, CancellationToken token);
+    Task<T> Replace(T entity, CancellationToken token);
 
     Task<int> Delete(string id, CancellationToken token);
 

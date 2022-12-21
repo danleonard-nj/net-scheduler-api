@@ -1,8 +1,8 @@
-﻿namespace NetScheduler.Data.Models;
+﻿namespace NetScheduler.Data.Entities;
 
 using MongoDB.Bson.Serialization.Attributes;
 
-public class ScheduleType : MongoBase
+public class ScheduleTypeItem : MongoBase
 {
     [BsonElement("schedule_type_id")]
     public string ScheduleTypeId { get; set; } = null!;
