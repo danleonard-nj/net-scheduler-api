@@ -10,7 +10,7 @@ public static class ScheduleHistoryExtensions
 {
     public static ScheduleHistoryModel ToScheduleHistoryModel(
         this ScheduleModel scheduleModel,
-        IEnumerable<ScheduleTaskModel> tasks,
+        IEnumerable<TaskModel> tasks,
         int scheduleRuntime,
         bool isManualTrigger = false)
     {

@@ -4,20 +4,20 @@ using NetScheduler.Models.Tasks;
 
 public interface ITaskService
 {
-    Task<ScheduleTaskModel> CreateTask(CreateTaskModel createTaskModel, CancellationToken token);
+    Task<TaskModel> CreateTask(CreateTaskModel createTaskModel, CancellationToken token);
 
     Task DeleteTask(string taskId, CancellationToken token);
 
-    Task<IEnumerable<ScheduleTaskModel>> ExecuteTasksAsync(
+    Task<IEnumerable<TaskModel>> ExecuteTasksAsync(
         IEnumerable<string> taskIds,
         string scheduleId,
         CancellationToken token);
 
-    Task<ScheduleTaskModel> GetTask(string taskId, CancellationToken token);
+    Task<TaskModel> GetTask(string taskId, CancellationToken token);
 
-    Task<IEnumerable<ScheduleTaskModel>> GetTasks(CancellationToken token);
+    Task<IEnumerable<TaskModel>> GetTasks(CancellationToken token);
 
-    Task<ScheduleTaskModel> UpsertTask(ScheduleTaskModel scheduleTaskModel, CancellationToken token);
+    Task<TaskModel> UpsertTask(TaskModel scheduleTaskModel, CancellationToken token);
 
     Task<TokenModel> GetTokenAsync(string appId);
 }

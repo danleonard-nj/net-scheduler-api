@@ -3,13 +3,13 @@
 using NetScheduler.Data.Entities;
 using System.Linq.Expressions;
 
-public interface ITaskRepository : IMongoRepository<ScheduleTaskItem>
+public interface ITaskRepository : IMongoRepository<TaskItem>
 {
-    Task<IEnumerable<ScheduleTaskItem>> GetTasksAsync(
+    Task<IEnumerable<TaskItem>> GetTasksAsync(
         IEnumerable<string> taskIds,
         CancellationToken cancellationToken);
 
-    Task<IEnumerable<ScheduleTaskItem>> Query(
-        Expression<Func<ScheduleTaskItem, bool>> query,
+    Task<IEnumerable<TaskItem>> Query(
+        Expression<Func<TaskItem, bool>> query,
         CancellationToken token);
 }

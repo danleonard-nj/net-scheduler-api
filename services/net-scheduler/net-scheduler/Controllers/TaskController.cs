@@ -112,7 +112,7 @@ public class TaskController : ControllerBase
 
     [HttpPut]
     public async Task<IActionResult> UpdateSchedule(
-        ScheduleTaskModel scheduleTaskModel,
+        TaskModel scheduleTaskModel,
         CancellationToken token)
     {
         try

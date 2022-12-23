@@ -5,7 +5,7 @@ using NetScheduler.Models.Tasks;
 public static class TaskExtensions
 {
     public static ApiEvent ToApiEvent(
-        this ScheduleTaskModel task)
+        this TaskModel task)
     {
         return new ApiEvent
         {

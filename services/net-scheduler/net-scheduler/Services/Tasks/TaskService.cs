@@ -40,7 +40,7 @@ public class TaskService : ITaskService
         _logger = logger;
     }
 
-    public async Task<ScheduleTaskModel> GetTask(
+    public async Task<TaskModel> GetTask(
         string taskId,
         CancellationToken token = default)
     {
@@ -56,7 +56,7 @@ public class TaskService : ITaskService
         return schedule?.ToDomain();
     }
 
-    public async Task<ScheduleTaskModel> CreateTask(
+    public async Task<TaskModel> CreateTask(
         CreateTaskModel createTaskModel,
         CancellationToken token = default)
     {
@@ -84,7 +84,7 @@ public class TaskService : ITaskService
         return scheduleTaskModel;
     }
 
-    public async Task<IEnumerable<ScheduleTaskModel>> GetTasks(
+    public async Task<IEnumerable<TaskModel>> GetTasks(
         CancellationToken token = default)
     {
         var schedules = await _scheduleTaskRepository.GetAll(token);
@@ -93,8 +93,8 @@ public class TaskService : ITaskService
         return models;
     }
 
-    public async Task<ScheduleTaskModel> UpsertTask(
-        ScheduleTaskModel scheduleTaskModel,
+    public async Task<TaskModel> UpsertTask(
+        TaskModel scheduleTaskModel,
         CancellationToken token = default)
     {
         _logger.LogInformation(
@@ -174,7 +174,7 @@ public class TaskService : ITaskService
             count);
     }
 
-    public async Task<IEnumerable<ScheduleTaskModel>> ExecuteTasksAsync(
+    public async Task<IEnumerable<TaskModel>> ExecuteTasksAsync(
         IEnumerable<string> taskIds,
         string scheduleId,
         CancellationToken token)
@@ -191,7 +191,7 @@ public class TaskService : ITaskService
                 Caller.GetName(),
                 scheduleId);
 
-            return Enumerable.Empty<ScheduleTaskModel>();
+            return Enumerable.Empty<TaskModel>();
         }
 
         var entities = await _scheduleTaskRepository.GetTasksAsync(
@@ -232,7 +232,7 @@ public class TaskService : ITaskService
         return new TokenModel(token);
     }
 
-    private ApiEvent CreateEventMessage(ScheduleTaskModel task)
+    private ApiEvent CreateEventMessage(TaskModel task)
     {
         if (string.IsNullOrWhiteSpace(task.IdentityClientId))
         {

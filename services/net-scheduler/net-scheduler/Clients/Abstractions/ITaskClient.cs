@@ -3,5 +3,5 @@ using NetScheduler.Models.Tasks;
 
 public interface ITaskClient
 {
-    Task<object?> ExecuteTask(ScheduleTaskModel task, CancellationToken token);
+    Task<object?> ExecuteTask(TaskModel task, CancellationToken token);
 }

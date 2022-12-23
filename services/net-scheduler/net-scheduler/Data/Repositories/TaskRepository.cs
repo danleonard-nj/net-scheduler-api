@@ -10,8 +10,8 @@ using System.Linq.Expressions;
 public class TaskRepository : ITaskRepository
 {
     private readonly IMongoDatabase _database;
-    private readonly IMongoCollection<ScheduleTaskItem> _collection;
-    private readonly IMongoQueryable<ScheduleTaskItem> _query;
+    private readonly IMongoCollection<TaskItem> _collection;
+    private readonly IMongoQueryable<TaskItem> _query;
 
     private readonly ILogger<TaskRepository> _logger;
 
@@ -24,20 +24,20 @@ public class TaskRepository : ITaskRepository
 
         _database = mongoClient.GetDatabase(
             MongoConstants.DatbabaseName);
-        _collection = _database.GetCollection<ScheduleTaskItem>(
+        _collection = _database.GetCollection<TaskItem>(
             MongoConstants.TaskCollectionName);
 
         _query = _collection.AsQueryable();
         _logger = logger;
     }
 
-    public async Task<IEnumerable<ScheduleTaskItem>> GetTasksAsync(
+    public async Task<IEnumerable<TaskItem>> GetTasksAsync(
         IEnumerable<string> taskIds,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(taskIds, nameof(taskIds));
 
-        var queryFilter = Builders<ScheduleTaskItem>
+        var queryFilter = Builders<TaskItem>
             .Filter
             .In(x => x.TaskId, taskIds);
 
@@ -55,7 +55,7 @@ public class TaskRepository : ITaskRepository
         return (int)result.DeletedCount;
     }
 
-    public async Task<ScheduleTaskItem> Get(string id, CancellationToken token)
+    public async Task<TaskItem> Get(string id, CancellationToken token)
     {
         var task = await _collection.FindAsync(
             x => x.TaskId == id,
@@ -64,15 +64,14 @@ public class TaskRepository : ITaskRepository
         return await task.FirstOrDefaultAsync(token);
     }
 
-    public async Task<IEnumerable<ScheduleTaskItem>> GetAll(CancellationToken token)
+    public async Task<IEnumerable<TaskItem>> GetAll(CancellationToken cancellationToken)
     {
-        var tasks = await _collection.FindAsync(
-            _ => true, cancellationToken: token);
-
-        return await tasks.ToListAsync(token);
+        return await _collection
+            .Find(_ => true)
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<ScheduleTaskItem> Insert(ScheduleTaskItem entity, CancellationToken token)
+    public async Task<TaskItem> Insert(TaskItem entity, CancellationToken token)
     {
         await _collection.InsertOneAsync(
             entity,
@@ -81,7 +80,7 @@ public class TaskRepository : ITaskRepository
         return entity;
     }
 
-    public async Task<ScheduleTaskItem> Replace(ScheduleTaskItem entity, CancellationToken token)
+    public async Task<TaskItem> Replace(TaskItem entity, CancellationToken token)
     {
         await _collection.ReplaceOneAsync(
             x => x.TaskId == entity.TaskId,
@@ -91,8 +90,8 @@ public class TaskRepository : ITaskRepository
         return entity;
     }
 
-    public async Task<IEnumerable<ScheduleTaskItem>> Query(
-        Expression<Func<ScheduleTaskItem, bool>> query,
+    public async Task<IEnumerable<TaskItem>> Query(
+        Expression<Func<TaskItem, bool>> query,
         CancellationToken token)
     {
         var result = await _query.Where(query).ToListAsync();

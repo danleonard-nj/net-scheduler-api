@@ -2,7 +2,7 @@
 
 using System.Text.Json.Serialization;
 
-public class ScheduleTaskModel
+public class TaskModel
 {
     public string TaskId { get; set; } = null!;
 

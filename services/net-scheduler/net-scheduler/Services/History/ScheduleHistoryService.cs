@@ -33,7 +33,7 @@ public class ScheduleHistoryService : IScheduleHistoryService
 
 	public async Task DispatchCreateHistoryEntryEventAsync(
 		ScheduleModel scheduleModel,
-		IEnumerable<ScheduleTaskModel> scheduleTaskModels)
+		IEnumerable<TaskModel> scheduleTaskModels)
 	{
 		
 	}

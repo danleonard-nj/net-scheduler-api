@@ -21,13 +21,15 @@ public static class ScheduleExtensions
             Links = schedule.Links,
             Queue = schedule.Queue,
             ModifiedDate = schedule.ModifiedDate,
+            ScheduleTypeId = schedule.ScheduleTypeId,
+            CreatedDate = schedule.CreatedDate,
             IsActive = schedule.IsActive
         };
     }
 
-    public static ScheduleTaskModel ToDomain(this ScheduleTaskItem scheduleAction)
+    public static TaskModel ToDomain(this TaskItem scheduleAction)
     {
-        return new ScheduleTaskModel
+        return new TaskModel
         {
             Endpoint = scheduleAction.Endpoint,
             IdentityClientId = scheduleAction.IdentityClientId,
@@ -49,9 +51,9 @@ public static class ScheduleExtensions
         };
     }
 
-    public static ScheduleTaskModel ToDomain(this CreateTaskModel createTaskModel)
+    public static TaskModel ToDomain(this CreateTaskModel createTaskModel)
     {
-        return new ScheduleTaskModel
+        return new TaskModel
         {
             Endpoint = createTaskModel.Endpoint,
             IdentityClientId = createTaskModel.IdentityClientId,
@@ -77,17 +79,19 @@ public static class ScheduleExtensions
             Links = scheduleModel.Links,
             Queue = scheduleModel.Queue,
             ModifiedDate = scheduleModel.ModifiedDate,
+            CreatedDate = scheduleModel.CreatedDate,
+            ScheduleTypeId = scheduleModel.ScheduleTypeId,
             IsActive = scheduleModel.IsActive
         };
     }
 
-    public static ScheduleTaskItem ToScheduleTask(
-        this ScheduleTaskModel scheduleActionModel,
+    public static TaskItem ToScheduleTask(
+        this TaskModel scheduleActionModel,
         string? taskId = null)
     {
         ArgumentNullException.ThrowIfNull(scheduleActionModel, nameof(scheduleActionModel));
 
-        return new ScheduleTaskItem
+        return new TaskItem
         {
             Endpoint = scheduleActionModel.Endpoint,
             IdentityClientId = scheduleActionModel.IdentityClientId,
