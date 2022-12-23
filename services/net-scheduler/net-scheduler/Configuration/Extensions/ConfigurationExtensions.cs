@@ -19,6 +19,10 @@ using NetScheduler.Data.Abstractions;
 using NetScheduler.Data.Repositories;
 using NetScheduler.Services.Events;
 using NetScheduler.Services.Events.Abstractions;
+using NetScheduler.Services.History;
+using NetScheduler.Services.History.Abstractions;
+using NetScheduler.Services.Identity;
+using NetScheduler.Services.Identity.Abstractions;
 using NetScheduler.Services.Schedules;
 using NetScheduler.Services.Schedules.Abstractions;
 using NetScheduler.Services.Tasks;
@@ -40,11 +44,14 @@ public static class ConfigurationExtensions
         webApplicationBuilder.Services.AddSingleton<IIdentityClientRepository, IdentityClientRepository>();
         webApplicationBuilder.Services.AddSingleton<IScheduleRepository, ScheduleRepository>();
         webApplicationBuilder.Services.AddSingleton<ITaskRepository, TaskRepository>();
+        webApplicationBuilder.Services.AddSingleton<IScheduleHistoryRepository, ScheduleHistoryRepository>();
         webApplicationBuilder.Services.AddSingleton<IFeatureClient, FeatureClient>();
 
+        webApplicationBuilder.Services.AddScoped<IIdentityService, IdentityService>();
         webApplicationBuilder.Services.AddScoped<IScheduleService, ScheduleService>();
         webApplicationBuilder.Services.AddScoped<ITaskService, TaskService>();
         webApplicationBuilder.Services.AddScoped<IEventService, EventService>();
+        webApplicationBuilder.Services.AddScoped<IScheduleHistoryService, ScheduleHistoryService>();
 
         webApplicationBuilder.ConfigureCors();
         webApplicationBuilder.ConfigureLogging();
@@ -63,9 +70,12 @@ public static class ConfigurationExtensions
 
     private static void ConfigureCache(this WebApplicationBuilder builder)
     {
+        var connectionString = builder.Configuration.GetConnectionString(
+            "Redis");
+
         builder.Services.AddStackExchangeRedisCache(config =>
         {
-            config.Configuration = builder.Configuration.GetConnectionString("Redis");
+            config.Configuration = connectionString;
         });
     }
 
@@ -138,6 +148,10 @@ public static class ConfigurationExtensions
         webApplicationBuilder.Services
             .AddSingleton(webApplicationBuilder
             .Bind<FeatureClientConfiguration>());
+
+        webApplicationBuilder.Services
+            .AddSingleton(webApplicationBuilder
+            .Bind<EventConfiguration>());
     }
 
     public static T Bind<T>(this WebApplicationBuilder webApplicationBuilder)

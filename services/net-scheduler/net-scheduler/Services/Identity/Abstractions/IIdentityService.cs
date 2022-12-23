@@ -1,9 +1,10 @@
 ﻿namespace NetScheduler.Services.Identity.Abstractions;
-using NetScheduler.Models.Identity;
+
+using System.Threading;
+using System.Threading.Tasks;
 
 public interface IIdentityService
 {
-    Task<TokenResponseModel> GetClientToken(CancellationToken cancellationToken);
-
-    Task<TokenResponseModel> GetUserToken(string username, string password, CancellationToken cancellationToken);
+    Task<string> GetAccessTokenAsync(string clientId, CancellationToken token = default);
+    Task<object> GetAuthorizationHeadersAsync(string clientId, CancellationToken cancellationToken = default);
 }

@@ -19,9 +19,6 @@ public class EventController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> HandleEvent(ApiEvent apiEvent)
     {
-        var result = await _eventService.HandleEventAsync(
-            apiEvent);
-
-        return Ok(result);
+        return Ok();
     }
 }

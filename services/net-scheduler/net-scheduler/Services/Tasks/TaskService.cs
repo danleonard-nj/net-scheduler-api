@@ -14,6 +14,7 @@ using NetScheduler.Services.Schedules.Extensions;
 using NetScheduler.Services.Tasks.Abstractions;
 using NetScheduler.Services.Tasks.Exceptions;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 public class TaskService : ITaskService
 {
@@ -103,11 +104,11 @@ public class TaskService : ITaskService
 
         if (!string.IsNullOrEmpty(scheduleTaskModel.TaskId))
         {
-             var exists = (await _scheduleTaskRepository
-                .Query(x => x.TaskId == scheduleTaskModel.TaskId, token))
-                .Any();
+            var existingSchedule = await _scheduleTaskRepository.Get(
+                scheduleTaskModel.TaskId,
+                token);
 
-            if (exists)
+            if (existingSchedule != null)
             {
                 _logger.LogInformation(
                    "{@Method}: {@TaskId}: Task exists, updating task",
@@ -153,11 +154,11 @@ public class TaskService : ITaskService
             Caller.GetName(),
             taskId);
 
-        var exists = await _scheduleTaskRepository.Query(
-            x => x.TaskId == taskId,
+        var exists = await _scheduleTaskRepository.Get(
+            taskId,
             token);
 
-        if (exists == null || !exists.Any())
+        if (exists == null)
         {
             throw new TaskNotFoundException($"No task with the ID '{taskId}' exists");
         }
@@ -173,138 +174,55 @@ public class TaskService : ITaskService
             count);
     }
 
-    private async Task<TaskExecutionResult> InvokeTaskExecution(
-        string taskId,
+    public async Task<IEnumerable<ScheduleTaskModel>> ExecuteTasksAsync(
+        IEnumerable<string> taskIds,
         string scheduleId,
-        CancellationToken token = default)
+        CancellationToken token)
     {
-        if (string.IsNullOrEmpty(taskId))
+        if (string.IsNullOrWhiteSpace(scheduleId))
         {
-            throw new ArgumentNullException(nameof(taskId));
+            throw new ArgumentNullException(nameof(scheduleId));
         }
 
-        _logger.LogInformation(
-            "{@TaskId}: Execute task",
-            taskId);
-
-        var task = await GetTask(taskId, token);
-
-        if (task == null)
+        if (!taskIds.Any())
         {
-            _logger.LogError(
-                "{@TaskId}: Task does not exist",
-                taskId);
-
-            throw new TaskException("Task not found");
-        }
-
-        _logger.LogInformation(
-            "{@TaskId}: {@Task}: Task data",
-            taskId,
-            JsonSerializer.Serialize(task));
-
-        if (task.IdentityClientId == null)
-        {
-            _logger.LogError(
-                "{@TaskId}: Task identity client is not configured",
-                taskId);
-
-            throw new InvalidIdentityClientException(
-                $"Task '{task.TaskName}' has no valid client configuration");
-        }
-
-        _logger.LogInformation(
-            "{@TaskId}: {@TaskName}: {@IdentityClient}: Fetching access token",
-            taskId,
-            task.TaskName,
-            task.IdentityClientId);
-
-        var authToken = await _tokenAcquisition.GetAccessTokenForAppAsync(
-            task.IdentityClientId);
-
-        _logger.LogInformation(
-           "{@TaskId}: {@TaskName}: {@Token}: Task access token fetched successfully",
-           taskId,
-           task.TaskName,
-           authToken);
-
-        var authHeaders = new AuthorizationHeaders(
-            authToken);
-
-        _logger.LogInformation(
-            "{@TaskId}: {@AuthHeaders}: Task auth headers",
-            taskId,
-            JsonSerializer.Serialize(authHeaders));
-
-        if (task.Endpoint == null || task.Method == null)
-        {
-            _logger.LogError(
-               "{@TaskId}: {@TaskName}: Invalid request configuration",
-               taskId,
-               task.TaskName);
-
-            throw new TaskException($"Task '{task.TaskName}' is not a valid request");
-        }
-
-        var eventMessage = new ApiEvent
-        {
-            Endpoint = task.Endpoint,
-            Json = task.Payload,
-            Method = task.Method,
-            Headers = authHeaders,
-            EventKey = $"{scheduleId}-{taskId}",
-            TaskId = taskId,
-            ScheduleId = scheduleId
-        };
-
-        _logger.LogInformation(
-            "{@TaskId}: {@TaskName}: {@EventMessage}: Created task event message",
-            taskId,
-            task.TaskName,
-            JsonSerializer.Serialize(eventMessage));
-
-        await _eventService.Send(eventMessage
-            .ToServiceBusMessage());
-
-        _logger.LogInformation(
-            "{@TaskId}: {@TaskName}: Event message sent",
-            taskId,
-            task.TaskName);
-
-        return new TaskExecutionResult(
-            taskId);
-    }
-
-    public async Task<TaskExecutionResult> ExecuteTask(
-        string taskId,
-        string scheduleId,
-        CancellationToken token = default)
-    {
-        if (string.IsNullOrWhiteSpace(taskId))
-        {
-            throw new ArgumentNullException(nameof(taskId));
-        }
-
-        try
-        {
-            return await InvokeTaskExecution(
-                taskId,
-                scheduleId,
-                token);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "{@Method}: {@TaskId}: {@Message}: Failed to execute task",
+            _logger.LogInformation(
+                "{@Method}: {@ScheduleId}: No associated tasks to execute",
                 Caller.GetName(),
-                taskId,
-                ex.Message);
+                scheduleId);
+
+            return Enumerable.Empty<ScheduleTaskModel>();
         }
 
-        return new TaskExecutionResult(taskId)
+        var entities = await _scheduleTaskRepository.GetTasksAsync(
+            taskIds,
+            token);
+
+        var scheduleTasks = entities
+            .Select(x => x.ToDomain());
+
+        var tasksByClient = scheduleTasks
+            .GroupBy(x => x.IdentityClientId)
+            .ToDictionary(k => k.Key, v => v.ToList());
+
+        var dispatchTasks = new List<Task>();
+
+        foreach (var (clientId, tasks) in tasksByClient)
         {
-            ExecutionResult = null
+            var eventMessages = tasks.Select(
+                x => CreateEventMessage(x));
+
+            var dispatch = _eventService.DispatchEventsAsync(
+                eventMessages,
+                clientId,
+                token);
+
+            dispatchTasks.Add(dispatch);
         };
+
+        await Task.WhenAll(dispatchTasks);
+
+        return scheduleTasks;
     }
 
     public async Task<TokenModel> GetTokenAsync(string appId)
@@ -312,5 +230,53 @@ public class TaskService : ITaskService
         var token = await _tokenAcquisition.GetAccessTokenForAppAsync(appId);
 
         return new TokenModel(token);
+    }
+
+    private ApiEvent CreateEventMessage(ScheduleTaskModel task)
+    {
+        if (string.IsNullOrWhiteSpace(task.IdentityClientId))
+        {
+            _logger.LogError(
+                "{@Method}: {@TaskId}: {@TaskName}: No identity client configured",
+                Caller.GetName(),
+                task.TaskId,
+                task.TaskName);
+
+            throw new InvalidIdentityClientException(
+                $"No idenity client is configured for task '{task.TaskName}'");
+        }
+
+        if (string.IsNullOrWhiteSpace(task.Endpoint))
+        {
+            _logger.LogError(
+                "{@Method}: {@TaskId}: {@TaskName}: Invalid request configuration",
+                Caller.GetName(),
+                task.TaskId,
+                task.TaskName);
+
+            throw new InvalidTaskException("Task endpoint is not defined");
+        }
+
+        if (string.IsNullOrWhiteSpace(task.Method))
+        {
+            _logger.LogError(
+                "{@Method}: {@TaskId}: {@TaskName}: Invalid request configuration",
+                Caller.GetName(),
+                task.TaskId,
+                task.TaskName);
+
+            throw new InvalidTaskException("Task request method is not defined");
+        }
+
+        var taskEventMessage = task.ToApiEvent();
+
+        _logger.LogInformation(
+           "{@Method}: {@TaskId}: {@TaskName}: {@ApiEvent}: Event to dispatch",
+           Caller.GetName(),
+           task.TaskId,
+           task.TaskName,
+           taskEventMessage);
+
+        return taskEventMessage;
     }
 }

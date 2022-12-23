@@ -8,6 +8,5 @@ public class IdentityClientSettings
 
     public string? ClientId { get; set; } = null!;
 
-    [KeyVaultSecret("KubeToolsClientSecret")]
     public string? ClientSecret { get; set; } = null!;
 }

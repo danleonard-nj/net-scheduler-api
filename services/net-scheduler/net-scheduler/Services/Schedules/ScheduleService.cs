@@ -1,13 +1,16 @@
 ﻿namespace NetScheduler.Services.Schedules;
 
 using Microsoft.Extensions.Caching.Distributed;
+using MongoDB.Bson.IO;
 using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
+using NetScheduler.Services.Events.Abstractions;
 using NetScheduler.Services.Extensions;
+using NetScheduler.Services.History.Extensions;
 using NetScheduler.Services.Schedules.Abstractions;
 using NetScheduler.Services.Schedules.Exceptions;
 using NetScheduler.Services.Schedules.Extensions;
@@ -18,6 +21,7 @@ public class ScheduleService : IScheduleService
 {
     private readonly IScheduleRepository _scheduleRepository;
     private readonly ITaskService _taskService;
+    private readonly IEventService _eventService;
     private readonly IFeatureClient _featureClient;
 
     private readonly IDistributedCache _distributedCache;
@@ -27,6 +31,7 @@ public class ScheduleService : IScheduleService
         IScheduleRepository scheduleRepository,
         ITaskService taskService,
         IFeatureClient featureClient,
+        IEventService eventService,
         IDistributedCache distributedCache,
         ILogger<ScheduleService> logger)
     {
@@ -35,11 +40,13 @@ public class ScheduleService : IScheduleService
         ArgumentNullException.ThrowIfNull(taskService, nameof(taskService));
         ArgumentNullException.ThrowIfNull(featureClient, nameof(featureClient));
         ArgumentNullException.ThrowIfNull(distributedCache, nameof(distributedCache));
+        ArgumentNullException.ThrowIfNull(eventService, nameof(eventService));
 
         _scheduleRepository = scheduleRepository;
         _distributedCache = distributedCache;
         _featureClient = featureClient;
         _taskService = taskService;
+        _eventService = eventService;
         _logger = logger;
     }
 
@@ -211,7 +218,7 @@ public class ScheduleService : IScheduleService
         _logger.LogInformation(
             "{@Method}: {@Schedule}: Updated schedule",
             Caller.GetName(),
-            entity.Serialize());
+            entity.ToJson());
 
         return updatedSchedule.ToDomain();
     }
@@ -253,48 +260,35 @@ public class ScheduleService : IScheduleService
 
     public async Task RunSchedule(string scheduleId, CancellationToken token)
     {
-        _logger.LogInformation(
-           "{@Method}: {@ScheduleId}: Run schedule",
-           Caller.GetName(),
-           scheduleId);
-
-        var schedule = await _scheduleRepository.Get(
+        var entity = await _scheduleRepository.Get(
             scheduleId,
             token);
 
-        if (schedule == null)
+        if (entity == null)
         {
             throw new ScheduleNotFoundException($"No schedule with the ID '{scheduleId}' exists");
         }
 
+        var schedule = entity.ToDomain();
+
         _logger.LogInformation(
-           "{@Method}: {@ScheduleId}: {@Links}: Linked tasks to invoke",
+           "{@Method}: {@ScheduleId}: {@ScheduleName}: {@Links}: Run schedule",
            Caller.GetName(),
            scheduleId,
-           schedule.Links?.Count() ?? 0);
+           schedule.ScheduleName,
+           schedule.Links);
 
-        if (schedule.Links != null && schedule.Links.Any())
-        {
-            var executionTasks = schedule
-                .Links
-                .Select(async taskId =>
-                {
-                    return await _taskService.ExecuteTask(
-                        taskId,
-                        scheduleId,
-                        token);
-                });
-
-            var results = await Task.WhenAll(
-                executionTasks);
-        }
-        else
+        if (entity.Links == null || !entity.Links.Any())
         {
             _logger.LogInformation(
-               "{@Method}: {@ScheduleId}: No linked tasks to invoke",
-               Caller.GetName(),
-               scheduleId);
+                "{@Method}: {@ScheduleId}: No linked tasks to execute",
+                Caller.GetName(),
+                scheduleId);
         }
+
+        await RunTriggeredSchedulesAsync(
+            new[] { schedule },
+            token);
     }
 
     private async Task ForceUpdateScheduleTimestamps(CancellationToken token)
@@ -412,7 +406,7 @@ public class ScheduleService : IScheduleService
                executionQueue?.Select(x => x.ScheduleId),
                executionQueue?.Select(x => x.ScheduleName));
 
-            return await ProcessExecutionQueue(
+            await RunTriggeredSchedulesAsync(
                 executionQueue,
                 token);
         }
@@ -502,16 +496,16 @@ public class ScheduleService : IScheduleService
         return schedule;
     }
 
-    private async Task<IEnumerable<TaskExecutionResult>> ProcessExecutionQueue(
-        IEnumerable<ScheduleModel> executionQueue,
+    private async Task<IEnumerable<ScheduleModel>> RunTriggeredSchedulesAsync(
+        IEnumerable<ScheduleModel> triggeredSchedules,
         CancellationToken token)
     {
         _logger.LogInformation(
             "{@Method}: {@QueueLength}: Processing task execution queue",
             Caller.GetName(),
-            executionQueue.Count());
+            triggeredSchedules.Count());
 
-        var schedules = executionQueue
+        var schedules = triggeredSchedules
             .Where(x => x.Links.Any());
 
         var scheduleTasks = schedules.SelectMany(
@@ -527,16 +521,23 @@ public class ScheduleService : IScheduleService
             Caller.GetName(),
             scheduleTasks);
 
-        var tasks = scheduleTasks.Select(async sched =>
+        var runTasks = schedules.Select(async sched =>
         {
-            return await _taskService.ExecuteTask(
-                sched.TaskId,
+            var tasks = await _taskService.ExecuteTasksAsync(
+                sched.Links,
                 sched.ScheduleId,
                 token);
+
+            await _eventService.DispatchScheduleHistoryEventAsync(
+                sched.ToScheduleHistoryModel(
+                    tasks,
+                    sched.NextRuntime));
         });
 
 
-        return await Task.WhenAll(tasks);
+        await Task.WhenAll(runTasks);
+
+        return triggeredSchedules;
     }
 
     private async Task<IEnumerable<ScheduleModel>> GetActiveSchedulesAsync(CancellationToken token)

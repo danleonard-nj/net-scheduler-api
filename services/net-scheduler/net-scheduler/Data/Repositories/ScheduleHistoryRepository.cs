@@ -7,64 +7,66 @@ using NetScheduler.Data.Entities;
 using System.Linq.Expressions;
 
 
-public class TaskRepository : ITaskRepository
+public class ScheduleHistoryRepository : IScheduleHistoryRepository
 {
     private readonly IMongoDatabase _database;
-    private readonly IMongoCollection<ScheduleTaskItem> _collection;
-    private readonly IMongoQueryable<ScheduleTaskItem> _query;
+    private readonly IMongoCollection<ScheduleHistoryItem> _collection;
+    private readonly IMongoQueryable<ScheduleHistoryItem> _query;
 
-    private readonly ILogger<TaskRepository> _logger;
+    private readonly ILogger<ScheduleHistoryRepository> _logger;
 
-    public TaskRepository(
+    public ScheduleHistoryRepository(
         IMongoClient mongoClient,
-        ILogger<TaskRepository> logger)
+        ILogger<ScheduleHistoryRepository> logger)
     {
         ArgumentNullException.ThrowIfNull(mongoClient, nameof(mongoClient));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
 
         _database = mongoClient.GetDatabase(
             MongoConstants.DatbabaseName);
-        _collection = _database.GetCollection<ScheduleTaskItem>(
+        _collection = _database.GetCollection<ScheduleHistoryItem>(
             MongoConstants.TaskCollectionName);
 
         _query = _collection.AsQueryable();
         _logger = logger;
     }
 
-    public async Task<IEnumerable<ScheduleTaskItem>> GetTasksAsync(
-        IEnumerable<string> taskIds,
-        CancellationToken cancellationToken)
+    public async Task<IEnumerable<ScheduleHistoryItem>> GetScheduleHistoryByCreatedDateRangeAsync(
+        int startCreatedDate,
+        int endCreatedDate,
+        CancellationToken token)
     {
-        ArgumentNullException.ThrowIfNull(taskIds, nameof(taskIds));
+        var builder = Builders<ScheduleHistoryItem>.Filter;
 
-        var queryFilter = Builders<ScheduleTaskItem>
-            .Filter
-            .In(x => x.TaskId, taskIds);
+        var queryFilter = builder.And(
+            builder.Gte(x => x.CreatedDate, startCreatedDate),
+            builder.Lte(x => x.CreatedDate, endCreatedDate));
 
         return await _collection
             .Find(queryFilter)
-            .ToListAsync();
+            .SortByDescending(x => x.CreatedDate)
+            .ToListAsync(token);
     }
 
     public async Task<int> Delete(string id, CancellationToken token)
     {
         var result = await _collection.DeleteOneAsync(
-            x => x.TaskId == id,
+            x => x.ScheduleHistoryId == id,
             cancellationToken: token);
 
         return (int)result.DeletedCount;
     }
 
-    public async Task<ScheduleTaskItem> Get(string id, CancellationToken token)
+    public async Task<ScheduleHistoryItem> Get(string id, CancellationToken token)
     {
         var task = await _collection.FindAsync(
-            x => x.TaskId == id,
+            x => x.ScheduleHistoryId == id,
             cancellationToken: token);
 
         return await task.FirstOrDefaultAsync(token);
     }
 
-    public async Task<IEnumerable<ScheduleTaskItem>> GetAll(CancellationToken token)
+    public async Task<IEnumerable<ScheduleHistoryItem>> GetAll(CancellationToken token)
     {
         var tasks = await _collection.FindAsync(
             _ => true, cancellationToken: token);
@@ -72,7 +74,7 @@ public class TaskRepository : ITaskRepository
         return await tasks.ToListAsync(token);
     }
 
-    public async Task<ScheduleTaskItem> Insert(ScheduleTaskItem entity, CancellationToken token)
+    public async Task<ScheduleHistoryItem> Insert(ScheduleHistoryItem entity, CancellationToken token)
     {
         await _collection.InsertOneAsync(
             entity,
@@ -81,18 +83,18 @@ public class TaskRepository : ITaskRepository
         return entity;
     }
 
-    public async Task<ScheduleTaskItem> Replace(ScheduleTaskItem entity, CancellationToken token)
+    public async Task<ScheduleHistoryItem> Replace(ScheduleHistoryItem entity, CancellationToken token)
     {
         await _collection.ReplaceOneAsync(
-            x => x.TaskId == entity.TaskId,
+            x => x.ScheduleHistoryId == entity.ScheduleHistoryId,
             entity,
             cancellationToken: token);
 
         return entity;
     }
 
-    public async Task<IEnumerable<ScheduleTaskItem>> Query(
-        Expression<Func<ScheduleTaskItem, bool>> query,
+    public async Task<IEnumerable<ScheduleHistoryItem>> Query(
+        Expression<Func<ScheduleHistoryItem, bool>> query,
         CancellationToken token)
     {
         var result = await _query.Where(query).ToListAsync();

@@ -1,12 +1,24 @@
 ﻿namespace NetScheduler.Services.Events.Abstractions;
 
-using Azure.Messaging.ServiceBus;
 using NetScheduler.Models.Events;
+using NetScheduler.Models.History;
 using System.Threading.Tasks;
 
 public interface IEventService
 {
-    Task Send(ServiceBusMessage message);
+    string ApplicationBaseUrl { get; }
 
-    Task<object?> HandleEventAsync(ApiEvent apiEvent);
+    Task DispatchEventAsync(
+        ApiEvent apiEvent,
+        string identityClientId,
+        CancellationToken cancellationToken = default);
+
+    Task DispatchEventsAsync(
+        IEnumerable<ApiEvent> apiEvents,
+        string identityClientId,
+        CancellationToken cancellationToken = default);
+
+    Task DispatchScheduleHistoryEventAsync(
+        ScheduleHistoryModel scheduleHistoryModel,
+        CancellationToken cancellationToken = default);
 }

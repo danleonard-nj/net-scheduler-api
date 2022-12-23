@@ -1,86 +1,173 @@
 ﻿namespace NetScheduler.Services.Events;
 
-using Azure.Core;
 using Azure.Messaging.ServiceBus;
-using Flurl.Http;
-using Flurl.Http.Configuration;
 using Microsoft.Extensions.Azure;
 using NetScheduler.Configuration;
+using NetScheduler.Configuration.Constants;
+using NetScheduler.Configuration.Settings;
 using NetScheduler.Models.Events;
+using NetScheduler.Models.History;
 using NetScheduler.Services.Events.Abstractions;
+using NetScheduler.Services.Extensions;
+using NetScheduler.Services.Identity.Abstractions;
 
 public class EventService : IEventService
 {
+    private readonly IIdentityService _identityService;
+    private readonly EventConfiguration _eventConfiguration;
     private readonly ServiceBusClient _client;
+
     private readonly ILogger<EventService> _logger;
 
     public EventService(
         IAzureClientFactory<ServiceBusClient> clientFactory,
-        IFlurlClientFactory flurlClientFactory,
+        IIdentityService identityService,
+        EventConfiguration eventConfiguration,
         ILogger<EventService> logger)
     {
         ArgumentNullException.ThrowIfNull(clientFactory, nameof(clientFactory));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
+        ArgumentNullException.ThrowIfNull(eventConfiguration, nameof(eventConfiguration));
+        ArgumentNullException.ThrowIfNull(identityService, nameof(identityService));
+
+        _client = clientFactory.CreateClient(AzureClientName.ApiEvents);
 
         _logger = logger;
-        _client = clientFactory.CreateClient(
-            "ApiEvents");
+        _identityService = identityService;
+        _eventConfiguration = eventConfiguration;
     }
 
-    public async Task Send(ServiceBusMessage message)
+    public string ApplicationBaseUrl
     {
+        get => _eventConfiguration.ApplicationBaseUrl;
+    }
+
+    public async Task DispatchEventAsync(
+        ApiEvent apiEvent,
+        string identityClientId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(apiEvent, nameof(apiEvent));
+
+        if (string.IsNullOrWhiteSpace(identityClientId))
+        {
+            throw new ArgumentNullException(nameof(identityClientId));
+        }
+
+        if (string.IsNullOrWhiteSpace(_eventConfiguration.ApiTriggerQueue))
+        {
+            _logger.LogError(
+               "{@Method}: {@QueueName}: Invalid queue name",
+               Caller.GetName(),
+               _eventConfiguration.ApiTriggerQueue);
+
+            throw new InvalidEventConfigurationException(
+                $"Event configuration trigger queue name cannot be null");
+        }
+
         _logger.LogInformation(
-            "{@Method}: Dispatching event",
-            Caller.GetName());
+           "{@Method}: {@IdentityClientId}: {@ApiEvent}: Fetching auth headers",
+           Caller.GetName(),
+           identityClientId,
+           apiEvent);
+
+        var authHeaders = await _identityService.GetAuthorizationHeadersAsync(
+            identityClientId,
+            cancellationToken);
+
+        _logger.LogInformation(
+           "{@Method}: {@IdentityClientId}: {@AuthHeaders}: Auth headers",
+           Caller.GetName(),
+           identityClientId,
+           authHeaders);
+
+        apiEvent.WithHeaders(authHeaders);
 
         var sender = _client.CreateSender(
-            "kasa-events");
+            _eventConfiguration.ApiTriggerQueue);
 
-        // Dispatch task execution event
         await sender.SendMessageAsync(
-            message);
+            apiEvent.ToServiceBusMessage());
     }
 
-    private async Task<object> SendRequest(ApiEvent apiEvent)
-    {
-        var httpMethod = new HttpMethod(apiEvent.Method);
 
-        if (apiEvent.Json != null)
+    public async Task DispatchEventsAsync(
+        IEnumerable<ApiEvent> apiEvents,
+        string identityClientId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_eventConfiguration.ApiTriggerQueue))
         {
-            return await apiEvent.Endpoint
-                .WithHeaders(apiEvent.Headers)
-                .SendJsonAsync(httpMethod, apiEvent.Json)
-                .ReceiveJson();
+            _logger.LogError(
+               "{@Method}: {@QueueName}: Invalid queue name",
+               Caller.GetName(),
+               _eventConfiguration.ApiTriggerQueue);
+
+            throw new InvalidEventConfigurationException(
+                $"Event configuration trigger queue name cannot be null");
         }
 
-        // Handle the task execution event request
-        return await apiEvent.Endpoint
-                .WithHeaders(apiEvent.Headers)
-                .SendAsync(httpMethod)
-                .ReceiveJson();
-    }
-
-    public async Task<object?> HandleEventAsync(ApiEvent apiEvent)
-    {
         _logger.LogInformation(
-            "{@Method}: {@ApiEvent}: Sending event request",
-            Caller.GetName(),
-            apiEvent);
+           "{@Method}: {@IdentityClientId}: {@ApiEventCount}: Fetching auth headers",
+           Caller.GetName(),
+           identityClientId,
+           apiEvents.Count());
 
-        try
+        var authHeaders = await _identityService.GetAuthorizationHeadersAsync(
+            identityClientId,
+            cancellationToken);
+
+        _logger.LogInformation(
+           "{@Method}: {@IdentityClientId}: {@AuthHeaders}: Auth headers",
+           Caller.GetName(),
+           identityClientId,
+           authHeaders);
+
+        var sendEvents = apiEvents
+            .Chunk(10)
+            .Select(async eventBatch =>
+            {
+                await SendBatchMessagesAsync(eventBatch);
+            });
+
+        await Task.WhenAll(sendEvents);
+    }
+
+    public async Task DispatchScheduleHistoryEventAsync(
+        ScheduleHistoryModel scheduleHistoryModel,
+        CancellationToken cancellationToken = default)
+    {
+        var authHeaders = await _identityService.GetAuthorizationHeadersAsync(
+            _eventConfiguration.ApplicationScope);
+
+        var apiEvent = new CreateScheduleHistoryEvent(
+            _eventConfiguration.ApplicationBaseUrl,
+            authHeaders,
+            scheduleHistoryModel);
+
+        var sender = _client.CreateSender(
+            _eventConfiguration.ApiTriggerQueue);
+
+        await sender.SendMessageAsync(
+            apiEvent.ToServiceBusMessage());
+    }
+
+    private async Task SendBatchMessagesAsync(IEnumerable<ApiEvent> events)
+    {
+        var sender = _client.CreateSender(
+            _eventConfiguration.ApiTriggerQueue);
+
+        var batch = await sender.CreateMessageBatchAsync();
+
+        foreach (var apiEvent in events)
         {
-            return await SendRequest(apiEvent);
-        }
+            if (!batch.TryAddMessage(apiEvent.ToServiceBusMessage()))
+            {
+                throw new ServiceBusBatchException(
+                    $"Failed to add message to batch: {apiEvent.ToJson()}");
+            }
 
-        catch (FlurlHttpException ex)
-        {
-            _logger.LogInformation(
-                "{@Method}: {@StatusCode}: {@Endpoint}: Event request failed",
-                Caller.GetName(),
-                ex.StatusCode,
-                ex.Call.Request.Url);
-
-            return new {ex.Message};
+            await sender.SendMessagesAsync(batch);
         }
     }
 }
