@@ -42,6 +42,23 @@ public class IdentityService : IIdentityService
 		return authToken;
 	}
 
+	public async Task<IDictionary<string, string>> GetClientTokensAsync(
+		IEnumerable<string> clientIds,
+		CancellationToken cancellationToken = default)
+	{
+		var tokens = new Dictionary<string, string>();
+
+		foreach (var clientId in clientIds)
+		{
+			var token = await _tokenAcquisition.GetAccessTokenForAppAsync(
+				clientId);
+
+			tokens.Add(clientId, token);
+		}
+
+		return tokens;
+	}
+
 	public async Task<object> GetAuthorizationHeadersAsync(
 		string clientId,
 		CancellationToken cancellationToken = default)

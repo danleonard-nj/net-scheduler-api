@@ -1,6 +1,7 @@
 ﻿namespace NetScheduler.Models.Events;
 
 using Azure.Messaging.ServiceBus;
+using System.Text;
 using System.Text.Json;
 
 public class ApiEvent
@@ -22,17 +23,24 @@ public class ApiEvent
         Headers = headers;
     }
 
-    public ServiceBusMessage ToServiceBusMessage()
+    public string GetJson()
     {
         var jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        var content = JsonSerializer.SerializeToUtf8Bytes(
+        var content = JsonSerializer.Serialize(
             this,
-            options: jsonOptions );
+            options: jsonOptions);
 
-        return new ServiceBusMessage(content);
+        return content;
+    }
+
+    public ServiceBusMessage ToServiceBusMessage()
+    {
+        var jsonBytes = Encoding.UTF8.GetBytes(GetJson());
+        
+        return new ServiceBusMessage(jsonBytes);
     }
 }

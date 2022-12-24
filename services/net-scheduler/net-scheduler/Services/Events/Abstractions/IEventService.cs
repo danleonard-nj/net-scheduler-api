@@ -15,7 +15,6 @@ public interface IEventService
 
     Task DispatchEventsAsync(
         IEnumerable<ApiEvent> apiEvents,
-        string identityClientId,
         CancellationToken cancellationToken = default);
 
     Task DispatchScheduleHistoryEventAsync(

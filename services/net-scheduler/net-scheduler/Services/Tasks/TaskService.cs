@@ -9,6 +9,7 @@ using NetScheduler.Models.Identity;
 using NetScheduler.Models.Tasks;
 using NetScheduler.Services.Events.Abstractions;
 using NetScheduler.Services.Extensions;
+using NetScheduler.Services.Identity.Abstractions;
 using NetScheduler.Services.Identity.Exceptions;
 using NetScheduler.Services.Schedules.Extensions;
 using NetScheduler.Services.Tasks.Abstractions;
@@ -22,19 +23,23 @@ public class TaskService : ITaskService
     private readonly ITaskRepository _scheduleTaskRepository;
     private readonly IEventService _eventService;
     private readonly ITokenAcquisition _tokenAcquisition;
+    private readonly IIdentityService _identityService;
     private readonly ILogger<TaskService> _logger;
 
     public TaskService(
         ITaskRepository scheduleTaskRepository,
         ITokenAcquisition tokenAcquisition,
         IEventService eventService,
+        IIdentityService identityService,
         ILogger<TaskService> logger)
     {
         ArgumentNullException.ThrowIfNull(scheduleTaskRepository, nameof(scheduleTaskRepository));
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
         ArgumentNullException.ThrowIfNull(eventService, nameof(eventService));
         ArgumentNullException.ThrowIfNull(tokenAcquisition, nameof(tokenAcquisition));
+        ArgumentNullException.ThrowIfNull(identityService, nameof(identityService));
 
+        _identityService = identityService;
         _scheduleTaskRepository = scheduleTaskRepository;
         _tokenAcquisition = tokenAcquisition;
         _eventService = eventService;
@@ -202,26 +207,30 @@ public class TaskService : ITaskService
         var scheduleTasks = entities
             .Select(x => x.ToDomain());
 
-        var tasksByClient = scheduleTasks
-            .GroupBy(x => x.IdentityClientId)
-            .ToDictionary(k => k.Key, v => v.ToList());
+        var clientIds = scheduleTasks
+            .Select(x => x.IdentityClientId)
+            .Distinct();
 
-        var dispatchTasks = new List<Task>();
+        var clientTokens = await _identityService.GetClientTokensAsync(
+            clientIds,
+            token);
 
-        foreach (var (clientId, tasks) in tasksByClient)
+        var eventMessages = new List<ApiEvent>();
+
+        foreach (var task in scheduleTasks)
         {
-            var eventMessages = tasks.Select(
-                x => CreateEventMessage(x));
+            clientTokens.TryGetValue(task.IdentityClientId, out var clientToken);
 
-            var dispatch = _eventService.DispatchEventsAsync(
-                eventMessages,
-                clientId,
-                token);
+            var eventMessage = CreateEventMessage(
+                task,
+                clientToken);
 
-            dispatchTasks.Add(dispatch);
-        };
+            eventMessages.Add(eventMessage);
+        }
 
-        await Task.WhenAll(dispatchTasks);
+        await _eventService.DispatchEventsAsync(
+            eventMessages,
+            token);
 
         return scheduleTasks;
     }
@@ -233,7 +242,9 @@ public class TaskService : ITaskService
         return new TokenModel(token);
     }
 
-    private ApiEvent CreateEventMessage(TaskModel task)
+    private ApiEvent CreateEventMessage(
+        TaskModel task,
+        string token)
     {
         if (string.IsNullOrWhiteSpace(task.IdentityClientId))
         {
@@ -269,7 +280,8 @@ public class TaskService : ITaskService
             throw new InvalidTaskException("Task request method is not defined");
         }
 
-        var taskEventMessage = task.ToApiEvent();
+        var taskEventMessage = task.ToApiEvent(
+            token);
 
         _logger.LogInformation(
            "{@Method}: {@TaskId}: {@TaskName}: {@ApiEvent}: Event to dispatch",

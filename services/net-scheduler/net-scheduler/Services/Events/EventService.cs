@@ -94,7 +94,6 @@ public class EventService : IEventService
 
     public async Task DispatchEventsAsync(
         IEnumerable<ApiEvent> apiEvents,
-        string identityClientId,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_eventConfiguration.ApiTriggerQueue))
@@ -109,20 +108,9 @@ public class EventService : IEventService
         }
 
         _logger.LogInformation(
-           "{@Method}: {@IdentityClientId}: {@ApiEventCount}: Fetching auth headers",
+           "{@Method}: {@ApiEventCount}: Dispatching events",
            Caller.GetName(),
-           identityClientId,
            apiEvents.Count());
-
-        var authHeaders = await _identityService.GetAuthorizationHeadersAsync(
-            identityClientId,
-            cancellationToken);
-
-        _logger.LogInformation(
-           "{@Method}: {@IdentityClientId}: {@AuthHeaders}: Auth headers",
-           Caller.GetName(),
-           identityClientId,
-           authHeaders);
 
         var sendEvents = apiEvents
             .Chunk(10)
@@ -167,6 +155,11 @@ public class EventService : IEventService
 
         foreach (var apiEvent in events)
         {
+            _logger.LogInformation(
+                "{@Method}: {@Json}: Adding event to batch",
+                Caller.GetName(),
+                apiEvent.GetJson());
+
             if (!batch.TryAddMessage(apiEvent.ToServiceBusMessage()))
             {
                 throw new EventBatchDispatchException(
