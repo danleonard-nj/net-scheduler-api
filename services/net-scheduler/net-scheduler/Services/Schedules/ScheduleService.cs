@@ -590,7 +590,7 @@ public class ScheduleService : IScheduleService
                 Feature.SchedulerConsoleDisplayCalculationDetails,
                 cancellationToken),
             _featureClient.EvaluateFeature(
-                Feature.SchedulerConsoleDisplayCalculationDetails, 
+                Feature.SchedulerExecutionHistory, 
                 cancellationToken),
              _featureClient.EvaluateFeature(
                 Feature.NetSchedulerCalculateTimestamps,
