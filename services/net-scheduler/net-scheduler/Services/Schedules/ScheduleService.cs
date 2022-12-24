@@ -127,14 +127,14 @@ public class ScheduleService : IScheduleService
     }
 
     public async Task<IEnumerable<ScheduleModel>> GetSchedules(
-        CancellationToken token = default)
+        CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
            "{@Method}: Fetching schedule list",
            Caller.GetName());
 
         var entities = await _scheduleRepository.GetAll(
-            token);
+            cancellationToken);
 
         var schedules = entities.Select(
             x => x.ToDomain());
@@ -149,8 +149,10 @@ public class ScheduleService : IScheduleService
 
     public async Task<ScheduleModel> UpdateSchedule(
         ScheduleModel scheduleModel,
-        CancellationToken token = default)
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(scheduleModel, nameof(scheduleModel));
+
         _logger.LogInformation(
             "{@Method}: {@ScheduleId}: {@ScheduleName}: Upsert schedule",
             Caller.GetName(),
@@ -182,7 +184,7 @@ public class ScheduleService : IScheduleService
 
         var entity = await _scheduleRepository.Get(
             scheduleModel.ScheduleId,
-            token);
+            cancellationToken);
 
         if (entity == null)
         {
@@ -213,7 +215,7 @@ public class ScheduleService : IScheduleService
 
         var updatedSchedule = await _scheduleRepository.Replace(
             entity,
-            token);
+            cancellationToken);
 
         _logger.LogInformation(
             "{@Method}: {@Schedule}: Updated schedule",
@@ -223,8 +225,15 @@ public class ScheduleService : IScheduleService
         return updatedSchedule.ToDomain();
     }
 
-    public async Task DeleteSchedule(string scheduleId, CancellationToken token)
+    public async Task DeleteSchedule(
+        string scheduleId,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(scheduleId))
+        {
+            throw new ArgumentNullException(nameof(scheduleId));
+        }
+
         _logger.LogInformation(
            "{@Method}: {@ScheduleId}: Delete schedule",
            Caller.GetName(),
@@ -232,7 +241,7 @@ public class ScheduleService : IScheduleService
 
         var entity = await _scheduleRepository.Get(
             scheduleId,
-            token);
+            cancellationToken);
 
         if (entity == null)
         {
@@ -248,7 +257,7 @@ public class ScheduleService : IScheduleService
 
         var result = await _scheduleRepository.Delete(
             scheduleId,
-            token);
+            cancellationToken);
 
         _logger.LogInformation(
            "{@Method}: {@ScheduleId}: {@ScheduleName}: {@IsDeleted}: Delete results",
@@ -258,11 +267,18 @@ public class ScheduleService : IScheduleService
            result > 0);
     }
 
-    public async Task RunSchedule(string scheduleId, CancellationToken token)
+    public async Task RunSchedule(
+        string scheduleId,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(scheduleId))
+        {
+            throw new ArgumentNullException(nameof(scheduleId));
+        }
+
         var entity = await _scheduleRepository.Get(
             scheduleId,
-            token);
+            cancellationToken);
 
         if (entity == null)
         {
@@ -284,11 +300,18 @@ public class ScheduleService : IScheduleService
                 "{@Method}: {@ScheduleId}: No linked tasks to execute",
                 Caller.GetName(),
                 scheduleId);
+
+            var isHistoryEnabled = await _featureClient.EvaluateFeature(
+                Feature.SchedulerExecutionHistory,
+                cancellationToken);
+
+            await RunTriggeredSchedulesAsync(
+                new[] { schedule },
+                isHistoryEnabled,
+                cancellationToken);
         }
 
-        await RunTriggeredSchedulesAsync(
-            new[] { schedule },
-            token);
+        
     }
 
     private async Task ForceUpdateScheduleTimestamps(CancellationToken token)
@@ -309,22 +332,21 @@ public class ScheduleService : IScheduleService
         }
     }
 
+    
+
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
-        _logger.LogInformation(
-           "{@Method}: Polling schedule states",
-           Caller.GetName());
-
-        var isNetSchedulerEnabled = await _featureClient.EvaluateFeature(
-            Feature.NetScheduler);
+        var (isEnabled, calcDisplayEnabled, historyEnabled) = await GetPollFeatureFlagDetailsAsync(
+            token);
 
         _logger.LogInformation(
-              "{@Method}: {@FeatureKey}: {@FeatureValue}",
+              "{@Method}: {@IsSchedulerEnabled}: {@IsCalculationDisplayEnabled}: {@IsScheduleHistoryEnabled}: Feature flags",
               Caller.GetName(),
-              Feature.NetScheduler,
-              isNetSchedulerEnabled);
+              isEnabled,
+              calcDisplayEnabled,
+              historyEnabled);
 
-        if (!isNetSchedulerEnabled)
+        if (!isEnabled)
         {
             _logger.LogInformation(
                "{@Method}: Scheduler is disabled",
@@ -408,6 +430,7 @@ public class ScheduleService : IScheduleService
 
             await RunTriggeredSchedulesAsync(
                 executionQueue,
+                historyEnabled,
                 token);
         }
 
@@ -498,7 +521,8 @@ public class ScheduleService : IScheduleService
 
     private async Task<IEnumerable<ScheduleModel>> RunTriggeredSchedulesAsync(
         IEnumerable<ScheduleModel> triggeredSchedules,
-        CancellationToken token)
+        bool isHistoryEnabled = true,
+        CancellationToken token = default)
     {
         _logger.LogInformation(
             "{@Method}: {@QueueLength}: Processing task execution queue",
@@ -528,12 +552,20 @@ public class ScheduleService : IScheduleService
                 sched.ScheduleId,
                 token);
 
-            await _eventService.DispatchScheduleHistoryEventAsync(
-                sched.ToScheduleHistoryModel(
-                    tasks,
-                    sched.NextRuntime));
-        });
+            if (isHistoryEnabled)
+            {
+                _logger.LogInformation(
+                    "{@Method}: {@ScheduleId}: {@ScheduleName}: Dispatching scheduler history task",
+                    Caller.GetName(),
+                    sched.ScheduleId,
+                    sched.ScheduleName);
 
+                await _eventService.DispatchScheduleHistoryEventAsync(
+                   sched.ToScheduleHistoryModel(
+                       tasks,
+                       sched.NextRuntime));
+            }           
+        });
 
         await Task.WhenAll(runTasks);
 
@@ -550,6 +582,23 @@ public class ScheduleService : IScheduleService
             .ToList();
 
         return activeSchedules.Select(x => x.ToDomain());
+    }
+
+    private async Task<(bool poll, bool calcDisplay, bool history)> GetPollFeatureFlagDetailsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var results = await Task.WhenAll(
+            _featureClient.EvaluateFeature(
+                Feature.NetScheduler,
+                cancellationToken),
+            _featureClient.EvaluateFeature(
+                Feature.SchedulerConsoleDisplayCalculationDetails,
+                cancellationToken),
+            _featureClient.EvaluateFeature(
+                Feature.SchedulerConsoleDisplayCalculationDetails, 
+                cancellationToken));
+
+        return (results[0], results[1], results[2]);
     }
 
     private async Task InitializeScheduleAsync(ScheduleModel schedule, CancellationToken token)

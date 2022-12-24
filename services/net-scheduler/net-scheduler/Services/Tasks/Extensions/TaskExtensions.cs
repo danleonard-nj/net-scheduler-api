@@ -1,4 +1,4 @@
-﻿namespace NetScheduler.Services.Tasks;
+﻿namespace NetScheduler.Services.Tasks.Extensions;
 using NetScheduler.Models.Events;
 using NetScheduler.Models.Tasks;
 

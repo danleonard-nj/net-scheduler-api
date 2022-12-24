@@ -27,7 +27,9 @@ public class FeatureClient : IFeatureClient
         _flurlClient = flurlClientFactory.Get(new Flurl.Url(featureClientConfiguration.BaseUrl));
     }
 
-    public async Task<bool> EvaluateFeature(string featureKey)
+    public async Task<bool> EvaluateFeature(
+        string featureKey,
+        CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(featureKey))
         {

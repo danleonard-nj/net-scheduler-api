@@ -4,5 +4,7 @@ using System.Threading.Tasks;
 
 public interface IFeatureClient
 {
-    Task<bool> EvaluateFeature(string featureKey);
+    Task<bool> EvaluateFeature(
+        string featureKey,
+        CancellationToken cancellationToken = default);
 }

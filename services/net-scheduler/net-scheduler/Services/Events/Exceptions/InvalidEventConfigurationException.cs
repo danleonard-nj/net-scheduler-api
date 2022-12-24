@@ -1,4 +1,4 @@
-﻿namespace NetScheduler.Services.Events;
+﻿namespace NetScheduler.Services.Events.Exceptions;
 
 using System;
 using System.Runtime.Serialization;

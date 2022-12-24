@@ -8,6 +8,7 @@ using NetScheduler.Configuration.Settings;
 using NetScheduler.Models.Events;
 using NetScheduler.Models.History;
 using NetScheduler.Services.Events.Abstractions;
+using NetScheduler.Services.Events.Exceptions;
 using NetScheduler.Services.Extensions;
 using NetScheduler.Services.Identity.Abstractions;
 
@@ -163,7 +164,7 @@ public class EventService : IEventService
         {
             if (!batch.TryAddMessage(apiEvent.ToServiceBusMessage()))
             {
-                throw new ServiceBusBatchException(
+                throw new EventBatchDispatchException(
                     $"Failed to add message to batch: {apiEvent.ToJson()}");
             }
 

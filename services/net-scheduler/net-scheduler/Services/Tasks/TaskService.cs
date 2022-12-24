@@ -13,6 +13,7 @@ using NetScheduler.Services.Identity.Exceptions;
 using NetScheduler.Services.Schedules.Extensions;
 using NetScheduler.Services.Tasks.Abstractions;
 using NetScheduler.Services.Tasks.Exceptions;
+using NetScheduler.Services.Tasks.Extensions;
 using System.Text.Json;
 using System.Threading.Tasks;
 
