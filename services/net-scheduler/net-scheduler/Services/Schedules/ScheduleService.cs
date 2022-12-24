@@ -336,7 +336,7 @@ public class ScheduleService : IScheduleService
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
-        var (isEnabled, calcDisplayEnabled, historyEnabled) = await GetPollFeatureFlagDetailsAsync(
+        var (isEnabled, calcDisplayEnabled, historyEnabled, forceCalculate) = await GetPollFeatureFlagDetailsAsync(
             token);
 
         _logger.LogInformation(
@@ -355,16 +355,7 @@ public class ScheduleService : IScheduleService
             return Enumerable.Empty<TaskExecutionResult>();
         }
 
-        var forceCalculateTimestamps = await _featureClient.EvaluateFeature(
-            Feature.NetSchedulerCalculateTimestamps);
-
-        _logger.LogInformation(
-              "{@Method}: {@FeatureKey}: {@FeatureValue}",
-              Caller.GetName(),
-              Feature.NetSchedulerCalculateTimestamps,
-              forceCalculateTimestamps);
-
-        if (forceCalculateTimestamps)
+        if (forceCalculate)
         {
             _logger.LogInformation(
               "{@Method}: Force updating schedule timestamps",
@@ -392,13 +383,16 @@ public class ScheduleService : IScheduleService
                     schedule,
                     token);
 
-                _logger.LogInformation(
-                    "{@Method}: {@ScheduleId}: {@ScheduleName}: {@IsTriggered}: {@TimeRemaining}: Schedule trigger state",
-                    Caller.GetName(),
-                    schedule.ScheduleId,
-                    schedule.ScheduleName,
-                    isTriggered,
-                    schedule.GetTimeRemaining());
+                if (calcDisplayEnabled)
+                {
+                    _logger.LogInformation(
+                        "{@Method}: {@ScheduleId}: {@ScheduleName}: {@IsTriggered}: {@TimeRemaining}: Schedule trigger state",
+                        Caller.GetName(),
+                        schedule.ScheduleId,
+                        schedule.ScheduleName,
+                        isTriggered,
+                        schedule.GetTimeRemaining());
+                }
 
                 // If the schedule is triggered add to the
                 // execution queue
@@ -584,7 +578,7 @@ public class ScheduleService : IScheduleService
         return activeSchedules.Select(x => x.ToDomain());
     }
 
-    private async Task<(bool poll, bool calcDisplay, bool history)> GetPollFeatureFlagDetailsAsync(
+    private async Task<(bool poll, bool calcDisplay, bool history, bool forceCalculate)> GetPollFeatureFlagDetailsAsync(
         CancellationToken cancellationToken = default)
     {
         var results = await Task.WhenAll(
@@ -596,9 +590,17 @@ public class ScheduleService : IScheduleService
                 cancellationToken),
             _featureClient.EvaluateFeature(
                 Feature.SchedulerConsoleDisplayCalculationDetails, 
+                cancellationToken),
+             _featureClient.EvaluateFeature(
+                Feature.NetSchedulerCalculateTimestamps,
                 cancellationToken));
 
-        return (results[0], results[1], results[2]);
+        return (
+            results[0],
+            results[1],
+            results[2],
+            results[3]
+        );
     }
 
     private async Task InitializeScheduleAsync(ScheduleModel schedule, CancellationToken token)
