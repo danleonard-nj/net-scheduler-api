@@ -6,7 +6,7 @@ public class ScheduleTypeModel
 
     public string ScheduleType { get; set; } = null!;
 
-    public string ScheduleTypeDescription { get; set; } = null!;
+    public string Description { get; set; } = null!;
 
     public int CreatedDate { get; set; }
 

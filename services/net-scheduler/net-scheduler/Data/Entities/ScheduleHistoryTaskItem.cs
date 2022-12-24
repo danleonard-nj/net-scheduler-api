@@ -1,6 +1,6 @@
 ﻿namespace NetScheduler.Data.Entities;
 
-public class ScheduleHistoryTaskItem
+public class ScheduleHistoryTaskItem : MongoBase
 {
     public string ScheduleHistoryTaskId { get; set; }
 
