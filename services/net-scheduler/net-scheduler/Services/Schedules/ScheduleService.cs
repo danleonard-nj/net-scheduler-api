@@ -301,17 +301,18 @@ public class ScheduleService : IScheduleService
                 Caller.GetName(),
                 scheduleId);
 
-            var isHistoryEnabled = await _featureClient.EvaluateFeature(
-                Feature.SchedulerExecutionHistory,
-                cancellationToken);
-
-            await RunTriggeredSchedulesAsync(
-                new[] { schedule },
-                isHistoryEnabled,
-                cancellationToken);
+            return;
         }
 
-        
+
+        var isHistoryEnabled = await _featureClient.EvaluateFeature(
+            Feature.SchedulerExecutionHistory,
+            cancellationToken);
+
+        await RunTriggeredSchedulesAsync(
+            new[] { schedule },
+            isHistoryEnabled,
+            cancellationToken);
     }
 
     private async Task ForceUpdateScheduleTimestamps(CancellationToken token)

@@ -146,6 +146,11 @@ public class EventService : IEventService
             authHeaders,
             scheduleHistoryModel);
 
+        _logger.LogInformation(
+            "{@Method}: {@HistoryApiEvent}: History event message",
+            Caller.GetName(),
+            apiEvent);
+
         var sender = _client.CreateSender(
             _eventConfiguration.ApiTriggerQueue);
 

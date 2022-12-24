@@ -39,12 +39,6 @@ public class IdentityService : IIdentityService
 		var authToken = await _tokenAcquisition.GetAccessTokenForAppAsync(
 			clientId);
 
-		_logger.LogInformation(
-		   "{@Method}: {@ClientId}: {@Token}: Token fetched",
-			Caller.GetName(),
-			clientId,
-			authToken);
-
 		return authToken;
 	}
 
