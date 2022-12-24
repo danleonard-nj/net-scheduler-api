@@ -25,7 +25,7 @@ public class ScheduleHistoryRepository : IScheduleHistoryRepository
         _database = mongoClient.GetDatabase(
             MongoConstants.DatbabaseName);
         _collection = _database.GetCollection<ScheduleHistoryItem>(
-            MongoConstants.TaskCollectionName);
+            MongoConstants.HistoryCollectionName);
 
         _query = _collection.AsQueryable();
         _logger = logger;
