@@ -11,9 +11,7 @@ imagePullSecrets:
 nameOverride: "net-scheduler"
 fullnameOverride: "net-scheduler"
 
-environment:
-  envFrom:
-    - secretName: azure
+environment: []
    
 probes:
   endpoints:
