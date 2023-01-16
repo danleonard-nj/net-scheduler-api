@@ -11,7 +11,15 @@ imagePullSecrets:
 nameOverride: "net-scheduler"
 fullnameOverride: "net-scheduler"
 
-environment: []
+environment:
+  environmentVariables: []
+  environmentSecrets:
+    - name: az-client-id
+      key: AZURE_CLIENT_ID
+    - name: az-client-secret
+      key: AZURE_CLIENT_SECRET
+    - name: az-tenant-id
+      key: AZURE_TENANT_ID
    
 probes:
   endpoints:
