@@ -9,8 +9,8 @@ using NetScheduler.Models.Events;
 using NetScheduler.Models.History;
 using NetScheduler.Services.Events.Abstractions;
 using NetScheduler.Services.Events.Exceptions;
-using NetScheduler.Services.Extensions;
 using NetScheduler.Services.Identity.Abstractions;
+using System.Text.Json;
 
 public class EventService : IEventService
 {
@@ -127,7 +127,8 @@ public class EventService : IEventService
         CancellationToken cancellationToken = default)
     {
         var authHeaders = await _identityService.GetAuthorizationHeadersAsync(
-            _eventConfiguration.ApplicationScope);
+            _eventConfiguration.ApplicationScope,
+            cancellationToken);
 
         var apiEvent = new CreateScheduleHistoryEvent(
             _eventConfiguration.ApplicationBaseUrl,
@@ -143,15 +144,19 @@ public class EventService : IEventService
             _eventConfiguration.ApiTriggerQueue);
 
         await sender.SendMessageAsync(
-            apiEvent.ToServiceBusMessage());
+            apiEvent.ToServiceBusMessage(),
+            cancellationToken);
     }
 
-    private async Task SendBatchMessagesAsync(IEnumerable<ApiEvent> events)
+    private async Task SendBatchMessagesAsync(
+        IEnumerable<ApiEvent> events,
+        CancellationToken cancellationToken = default)
     {
         var sender = _client.CreateSender(
             _eventConfiguration.ApiTriggerQueue);
 
-        var batch = await sender.CreateMessageBatchAsync();
+        var batch = await sender.CreateMessageBatchAsync(
+            cancellationToken);
 
         foreach (var apiEvent in events)
         {
@@ -162,11 +167,14 @@ public class EventService : IEventService
 
             if (!batch.TryAddMessage(apiEvent.ToServiceBusMessage()))
             {
+                
                 throw new EventBatchDispatchException(
-                    $"Failed to add message to batch: {apiEvent.ToJson()}");
+                    $"Failed to add message to batch: {JsonSerializer.Serialize(apiEvent)}");
             }
 
-            await sender.SendMessagesAsync(batch);
+            await sender.SendMessagesAsync(
+                batch,
+                cancellationToken);
         }
     }
 }

@@ -10,6 +10,8 @@ public class ScheduleHistoryItem : MongoBase
 
     public IEnumerable<ScheduleHistoryTaskItem> Tasks { get; set; }
 
+    public bool IsManualTrigger { get; set; }
+
     public int TriggerDate { get; set; }
 
     public int CreatedDate { get; set; }

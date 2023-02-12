@@ -1,5 +1,4 @@
 ﻿namespace NetScheduler.Models.History;
-using NetScheduler.Data.Entities;
 
 public class ScheduleHistoryModel
 {

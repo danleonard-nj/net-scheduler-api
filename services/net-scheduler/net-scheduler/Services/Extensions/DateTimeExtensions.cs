@@ -1,4 +1,5 @@
 ﻿namespace NetScheduler.Services.Extensions;
+
 public static class DateTimeExtensions
 {
     public static DateTimeOffset ToLocalDateTime(this int timestamp)

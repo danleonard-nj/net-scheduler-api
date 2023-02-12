@@ -4,7 +4,6 @@ using NetScheduler.Data.Entities;
 using NetScheduler.Models.History;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
-using System.Threading.Tasks;
 
 public static class ScheduleHistoryExtensions
 {
@@ -41,6 +40,7 @@ public static class ScheduleHistoryExtensions
             ScheduleHistoryId = scheduleHistoryModel.ScheduleHistoryId,
             ScheduleId = scheduleHistoryModel.ScheduleId,
             ScheduleName = scheduleHistoryModel.ScheduleName,
+            IsManualTrigger = scheduleHistoryModel.IsManualTrigger,
             Tasks = scheduleHistoryModel.Tasks.Select(scheduleHistoryModelTask => new ScheduleHistoryTaskItem
             {
                 ScheduleHistoryTaskId = scheduleHistoryModelTask.ScheduleHistoryTaskId,
@@ -59,6 +59,7 @@ public static class ScheduleHistoryExtensions
             ScheduleHistoryId = scheduleHistoryItem.ScheduleHistoryId,
             ScheduleId = scheduleHistoryItem.ScheduleId,
             ScheduleName = scheduleHistoryItem.ScheduleName,
+            IsManualTrigger = scheduleHistoryItem.IsManualTrigger,
             Tasks = scheduleHistoryItem.Tasks.Select(scheduleHistoryItemTask => new ScheduleTaskHistoryModel
             {
                 ScheduleHistoryTaskId = scheduleHistoryItemTask.ScheduleHistoryTaskId,

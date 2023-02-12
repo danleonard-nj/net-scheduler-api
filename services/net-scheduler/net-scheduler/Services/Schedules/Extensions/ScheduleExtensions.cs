@@ -3,7 +3,6 @@ using Cronos;
 using NetScheduler.Data.Entities;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
-using NetScheduler.Services.Extensions;
 using System.Text.Json;
 
 public static class ScheduleExtensions
@@ -40,17 +39,6 @@ public static class ScheduleExtensions
         };
     }
 
-    public static ScheduleModel ToDomain(this CreateScheduleModel createScheduleModel)
-    {
-        return new ScheduleModel
-        {
-            Cron = createScheduleModel.Cron,
-            IncludeSeconds = createScheduleModel.IncludeSeconds,
-            ScheduleId = Guid.NewGuid().ToString(),
-            ScheduleName = createScheduleModel.ScheduleName,
-        };
-    }
-
     public static TaskModel ToDomain(this CreateTaskModel createTaskModel)
     {
         return new TaskModel
@@ -82,6 +70,36 @@ public static class ScheduleExtensions
             CreatedDate = scheduleModel.CreatedDate,
             ScheduleTypeId = scheduleModel.ScheduleTypeId,
             IsActive = scheduleModel.IsActive
+        };
+    }
+
+    public static ScheduleModel UpdateScheduleDetails(this ScheduleModel source, ScheduleModel updated)
+    {
+        source.ScheduleName = updated.ScheduleName;
+        source.IsActive = updated.IsActive;
+
+        source.Cron = updated.Cron;
+        source.IncludeSeconds = updated.IncludeSeconds;
+        source.Links = updated.Links;
+
+        // Clear timestamps to be recalculated
+        source.NextRuntime = default;
+        source.Queue = Enumerable.Empty<int>();
+
+        source.LastRuntime = updated.LastRuntime;
+        source.ModifiedDate = DateTime.Now;
+
+        return source;
+    }
+
+    public static TriggeredScheduleModel ToTriggeredScheduleModel(
+        this ScheduleModel schedule,
+        bool isManual = false)
+    {
+        return new TriggeredScheduleModel
+        {
+            Schedule = schedule,
+            IsManual = isManual
         };
     }
 
