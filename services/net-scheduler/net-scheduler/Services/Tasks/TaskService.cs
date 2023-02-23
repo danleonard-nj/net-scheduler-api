@@ -4,23 +4,20 @@ using Microsoft.Identity.Web;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
 using NetScheduler.Models.Events;
-using NetScheduler.Models.Http;
 using NetScheduler.Models.Identity;
 using NetScheduler.Models.Tasks;
 using NetScheduler.Services.Events.Abstractions;
-using NetScheduler.Services.Extensions;
 using NetScheduler.Services.Identity.Abstractions;
 using NetScheduler.Services.Identity.Exceptions;
 using NetScheduler.Services.Schedules.Extensions;
 using NetScheduler.Services.Tasks.Abstractions;
 using NetScheduler.Services.Tasks.Exceptions;
 using NetScheduler.Services.Tasks.Extensions;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 public class TaskService : ITaskService
 {
-    private readonly ITaskRepository _scheduleTaskRepository;
+    private readonly ITaskRepository _taskRepository;
     private readonly IEventService _eventService;
     private readonly ITokenAcquisition _tokenAcquisition;
     private readonly IIdentityService _identityService;
@@ -40,7 +37,7 @@ public class TaskService : ITaskService
         ArgumentNullException.ThrowIfNull(identityService, nameof(identityService));
 
         _identityService = identityService;
-        _scheduleTaskRepository = scheduleTaskRepository;
+        _taskRepository = scheduleTaskRepository;
         _tokenAcquisition = tokenAcquisition;
         _eventService = eventService;
         _logger = logger;
@@ -55,7 +52,7 @@ public class TaskService : ITaskService
             throw new ArgumentNullException(nameof(taskId));
         }
 
-        var schedule = await _scheduleTaskRepository.Get(
+        var schedule = await _taskRepository.Get(
             taskId,
             token);
 
@@ -78,7 +75,7 @@ public class TaskService : ITaskService
         var scheduleTask = scheduleTaskModel
             .ToScheduleTask();
 
-        await _scheduleTaskRepository.Insert(
+        await _taskRepository.Insert(
             scheduleTask,
             token);
 
@@ -91,9 +88,11 @@ public class TaskService : ITaskService
     }
 
     public async Task<IEnumerable<TaskModel>> GetTasks(
-        CancellationToken token = default)
+        CancellationToken cancellationToken = default)
     {
-        var schedules = await _scheduleTaskRepository.GetAll(token);
+        var schedules = await _taskRepository.GetAll(
+            cancellationToken);
+
         var models = schedules.Select(x => x.ToDomain());
 
         return models;
@@ -103,6 +102,7 @@ public class TaskService : ITaskService
         TaskModel scheduleTaskModel,
         CancellationToken token = default)
     {
+        // TODO: Switch to explicit updates and inserts
         _logger.LogInformation(
             "{@Method}: {@ScheduleTaskModel}: Upserting task",
             Caller.GetName(),
@@ -110,7 +110,7 @@ public class TaskService : ITaskService
 
         if (!string.IsNullOrEmpty(scheduleTaskModel.TaskId))
         {
-            var existingSchedule = await _scheduleTaskRepository.Get(
+            var existingSchedule = await _taskRepository.Get(
                 scheduleTaskModel.TaskId,
                 token);
 
@@ -123,7 +123,7 @@ public class TaskService : ITaskService
 
                 var task = scheduleTaskModel.ToScheduleTask();
 
-                var updatedSchedule = await _scheduleTaskRepository.Replace(
+                var updatedSchedule = await _taskRepository.Replace(
                     task,
                     token);
 
@@ -139,7 +139,7 @@ public class TaskService : ITaskService
             Caller.GetName(),
             createTask);
 
-        var createdTask = await _scheduleTaskRepository.Insert(
+        var createdTask = await _taskRepository.Insert(
             createTask,
             token);
 
@@ -148,7 +148,7 @@ public class TaskService : ITaskService
 
     public async Task DeleteTask(
         string taskId,
-        CancellationToken token)
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(taskId))
         {
@@ -160,18 +160,18 @@ public class TaskService : ITaskService
             Caller.GetName(),
             taskId);
 
-        var exists = await _scheduleTaskRepository.Get(
+        var exists = await _taskRepository.Get(
             taskId,
-            token);
+            cancellationToken);
 
         if (exists == null)
         {
             throw new TaskNotFoundException($"No task with the ID '{taskId}' exists");
         }
 
-        var count = await _scheduleTaskRepository.Delete(
+        var count = await _taskRepository.Delete(
             taskId,
-            token);
+            cancellationToken);
 
         _logger.LogInformation(
             "{@Method}: {@TaskId}: Deleted record count: {@RecordCount}",
@@ -190,6 +190,11 @@ public class TaskService : ITaskService
             throw new ArgumentNullException(nameof(scheduleId));
         }
 
+        _logger.LogInformation(
+            "{@Method}: {@ScheduleId}: Executing schedule tasks",
+            Caller.GetName(),
+            scheduleId);
+
         if (!taskIds.Any())
         {
             _logger.LogInformation(
@@ -200,7 +205,7 @@ public class TaskService : ITaskService
             return Enumerable.Empty<TaskModel>();
         }
 
-        var entities = await _scheduleTaskRepository.GetTasksAsync(
+        var entities = await _taskRepository.GetTasksAsync(
             taskIds,
             token);
 
@@ -219,8 +224,18 @@ public class TaskService : ITaskService
 
         foreach (var task in scheduleTasks)
         {
-            clientTokens.TryGetValue(task.IdentityClientId, out var clientToken);
+            // Get the token for the identity client configured
+            // for the task
+            if (!clientTokens.TryGetValue(task.IdentityClientId, out var clientToken))
+            {
+                // In case we fail to fetch a token for an identity client
+                // in the list of schedule tasks
+                throw new InvalidIdentityClientTokenException(
+                    $"No token fetched for client {task.IdentityClientId}");
+            }
 
+            // Create service bus event to run the triggered
+            // task
             var eventMessage = CreateEventMessage(
                 task,
                 clientToken);
@@ -266,7 +281,7 @@ public class TaskService : ITaskService
                 task.TaskId,
                 task.TaskName);
 
-            throw new InvalidTaskException("Task endpoint is not defined");
+            throw new InvalidTaskException($"Endpoint for task '{task.TaskId}' is not defined");
         }
 
         if (string.IsNullOrWhiteSpace(task.Method))
@@ -277,7 +292,7 @@ public class TaskService : ITaskService
                 task.TaskId,
                 task.TaskName);
 
-            throw new InvalidTaskException("Task request method is not defined");
+            throw new InvalidTaskException($"Request method for task '{task.TaskId}' is not defined");
         }
 
         var taskEventMessage = task.ToApiEvent(

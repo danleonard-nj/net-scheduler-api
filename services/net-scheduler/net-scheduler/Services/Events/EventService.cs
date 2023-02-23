@@ -136,9 +136,10 @@ public class EventService : IEventService
             scheduleHistoryModel);
 
         _logger.LogInformation(
-            "{@Method}: {@HistoryApiEvent}: History event message",
+            "{@Method}: {@ScheduleId}: {@ScheduleName}: Create schedule history event received",
             Caller.GetName(),
-            apiEvent);
+            scheduleHistoryModel.ScheduleId,
+            scheduleHistoryModel.ScheduleName);
 
         var sender = _client.CreateSender(
             _eventConfiguration.ApiTriggerQueue);

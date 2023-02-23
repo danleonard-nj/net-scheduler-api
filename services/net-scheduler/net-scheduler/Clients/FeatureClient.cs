@@ -36,7 +36,7 @@ public class FeatureClient : IFeatureClient
             throw new ArgumentNullException(nameof(featureKey));
         }
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "{@Method}: {@FeatureHeaderKey}: {@FeatureApiKey}: {@FeatureKey}: Evaluating feature",
             Caller.GetName(),
             _configuration.ApiKeyHeader,

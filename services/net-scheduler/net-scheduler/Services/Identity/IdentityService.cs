@@ -63,7 +63,7 @@ public class IdentityService : IIdentityService
 		string clientId,
 		CancellationToken cancellationToken = default)
 	{
-		var token = await this.GetAccessTokenAsync(
+		var token = await GetAccessTokenAsync(
 			clientId,
 			cancellationToken);
 

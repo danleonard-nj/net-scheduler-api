@@ -539,21 +539,6 @@ public class ScheduleService : IScheduleService
         var schedules = triggeredSchedules
             .Where(x => x.Schedule.Links.Any());
 
-        //// Get all linked tasks for all invoked
-        //// schedules
-        //var scheduleTasks = schedules.SelectMany(
-        //    x => x.Schedule.Links,
-        //    (schedule, taskId) => new
-        //    {
-        //        ScheduleId = schedule.Schedule.ScheduleId,
-        //        TaskId = taskId
-        //    });
-
-        //_logger.LogInformation(
-        //    "{@Method}: {@ScheduleTasks}: Schedule tasks to execute",
-        //    Caller.GetName(),
-        //    scheduleTasks);
-
         // Execute triggered schedule tasks
         var runTasks = schedules.Select(async sched =>
         {
