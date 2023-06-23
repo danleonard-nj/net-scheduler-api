@@ -20,7 +20,7 @@ public static class ScheduleExtensions
             Links = schedule.Links,
             Queue = schedule.Queue,
             ModifiedDate = schedule.ModifiedDate,
-            ScheduleTypeId = schedule.ScheduleTypeId,
+            ScheduleType = schedule.ScheduleType,
             CreatedDate = schedule.CreatedDate,
             IsActive = schedule.IsActive
         };
@@ -68,7 +68,7 @@ public static class ScheduleExtensions
             Queue = scheduleModel.Queue,
             ModifiedDate = scheduleModel.ModifiedDate,
             CreatedDate = scheduleModel.CreatedDate,
-            ScheduleTypeId = scheduleModel.ScheduleTypeId,
+            ScheduleType = scheduleModel.ScheduleType,
             IsActive = scheduleModel.IsActive
         };
     }

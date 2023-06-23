@@ -210,6 +210,7 @@ public class ScheduleService : IScheduleService
             LastRuntime = default,
             NextRuntime = default,
             CreatedDate = DateTime.UtcNow,
+            ScheduleType = ScheduleType.User.ToString()
         };
 
         _logger.LogInformation(
@@ -235,8 +236,9 @@ public class ScheduleService : IScheduleService
         var entities = await _scheduleRepository.GetAll(
             cancellationToken);
 
-        var schedules = entities.Select(
-            x => x.ToDomain());
+        var schedules = entities
+            .Select(x => x.ToDomain())
+            .Where(x => x.ScheduleType == ScheduleType.User.ToString());
 
         _logger.LogInformation(
            "{@Method}: {@Count}: Schedules fetched",

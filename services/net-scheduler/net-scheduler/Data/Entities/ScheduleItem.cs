@@ -5,7 +5,7 @@ public class ScheduleItem : MongoBase
 
     public string ScheduleName { get; set; } = null!;
 
-    public string? ScheduleTypeId { get; set; }
+    public string? ScheduleType { get; set; }
 
     public string Cron { get; set; } = null!;
 

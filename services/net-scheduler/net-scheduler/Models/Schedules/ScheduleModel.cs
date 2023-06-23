@@ -3,7 +3,7 @@ public class ScheduleModel
 {
     public string ScheduleId { get; set; } = null!;
 
-    public string? ScheduleTypeId { get; set; }
+    public string? ScheduleType { get; set; }
 
     public string ScheduleName { get; set; } = null!;
 
