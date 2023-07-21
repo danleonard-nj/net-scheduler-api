@@ -49,7 +49,7 @@ public class ScheduleService : IScheduleService
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
-        var startTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var startTimestamp = DateTimeOffset.UtcNow;
 
         var (isEnabled, calcDisplayEnabled, historyEnabled, forceCalculate) = await GetPollFeatureFlagDetailsAsync(
             token);
@@ -144,14 +144,13 @@ public class ScheduleService : IScheduleService
                 token);
         }
 
-        var endTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var elapsed = DateTimeOffset.UtcNow - startTimestamp;
 
         // Log schedule processing time
         _logger.LogInformation(
-            "{@Method}: {@ScheduleCount}: {@SecondsElapsed}: Schedule poll cycle complete",
+            "{@Method}: Schedule poll cycle completed in {@MillisecondsElapsed} ms",
             Caller.GetName(),
-            activeSchedules.Count(),
-            endTimestamp - startTimestamp);
+            elapsed.TotalMilliseconds);
 
         return Enumerable.Empty<TaskExecutionResult>();
     }
