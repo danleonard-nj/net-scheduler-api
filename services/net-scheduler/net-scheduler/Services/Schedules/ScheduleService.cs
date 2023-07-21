@@ -58,6 +58,17 @@ public class ScheduleService : IScheduleService
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
+        if (PollState.IsPolling)
+        {
+            _logger.LogInformation(
+                "{@Method}: Active poll is currently in progress",
+                Caller.GetName());
+
+            return Enumerable.Empty<TaskExecutionResult>();
+        }
+
+        PollState.SetPolling(true);
+
         var startTimestamp = DateTimeOffset.UtcNow;
 
         var evaluatedFeatures = await GetPollFeatureFlagDetailsAsync(
@@ -171,6 +182,8 @@ public class ScheduleService : IScheduleService
             "{Method}: Cached CRON expressions: {@Count}",
             Caller.GetName(),
             CronExpressionParser.GetParsedExpressionCache().Count);
+
+        PollState.SetPolling(false);
 
         return Enumerable.Empty<TaskExecutionResult>();
     }
@@ -606,23 +619,8 @@ public class ScheduleService : IScheduleService
     private async Task<IEnumerable<ScheduleModel>> GetActiveSchedulesAsync(
         CancellationToken token)
     {
-        var schedules = await _cacheService.GetAsync<IEnumerable<ScheduleItem>>(
-            CacheKey.ActiveSchedules());
-
-        if (schedules == null)
-        {
-            _logger.LogInformation(
-                "{@Method}: Fetching active schedules from database",
-                Caller.GetName());
-
-            schedules = await _scheduleRepository.GetAll(
+        var schedules = await _scheduleRepository.GetAll(
                 token);
-
-            await _cacheService.SetAsync(
-                CacheKey.ActiveSchedules(),
-                schedules,
-                60); 
-        }
 
         var activeSchedules = schedules
             .Where(x => x.IsActive ?? true)
