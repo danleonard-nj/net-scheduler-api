@@ -3,10 +3,8 @@
 using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
-using Flurl.Http;
 using Flurl.Http.Configuration;
 using Microsoft.Extensions.Azure;
-using Microsoft.Extensions.Logging;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Logging;
 using MongoDB.Driver;
@@ -17,6 +15,8 @@ using NetScheduler.Configuration.Extensions;
 using NetScheduler.Configuration.Settings;
 using NetScheduler.Data.Abstractions;
 using NetScheduler.Data.Repositories;
+using NetScheduler.Services.Cache;
+using NetScheduler.Services.Cache.Abstractions;
 using NetScheduler.Services.Events;
 using NetScheduler.Services.Events.Abstractions;
 using NetScheduler.Services.History;
@@ -46,6 +46,7 @@ public static class ConfigurationExtensions
         webApplicationBuilder.Services.AddSingleton<ITaskRepository, TaskRepository>();
         webApplicationBuilder.Services.AddSingleton<IScheduleHistoryRepository, ScheduleHistoryRepository>();
         webApplicationBuilder.Services.AddSingleton<IFeatureClient, FeatureClient>();
+        webApplicationBuilder.Services.AddSingleton<ICacheService, CacheService>();
 
         webApplicationBuilder.Services.AddScoped<IIdentityService, IdentityService>();
         webApplicationBuilder.Services.AddScoped<IScheduleService, ScheduleService>();

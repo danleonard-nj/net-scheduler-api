@@ -4,8 +4,12 @@ using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
+using NetScheduler.Data.Entities;
+using NetScheduler.Models.Cache;
+using NetScheduler.Models.Features;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
+using NetScheduler.Services.Cache.Abstractions;
 using NetScheduler.Services.Events.Abstractions;
 using NetScheduler.Services.History.Extensions;
 using NetScheduler.Services.Schedules.Abstractions;
@@ -23,6 +27,7 @@ public class ScheduleService : IScheduleService
     private readonly IFeatureClient _featureClient;
 
     private readonly IDistributedCache _distributedCache;
+    private readonly ICacheService _cacheService;
     private readonly ILogger<ScheduleService> _logger;
 
     public ScheduleService(
@@ -31,6 +36,7 @@ public class ScheduleService : IScheduleService
         IFeatureClient featureClient,
         IEventService eventService,
         IDistributedCache distributedCache,
+        ICacheService cacheService,
         ILogger<ScheduleService> logger)
     {
         ArgumentNullException.ThrowIfNull(logger, nameof(logger));
@@ -39,12 +45,14 @@ public class ScheduleService : IScheduleService
         ArgumentNullException.ThrowIfNull(featureClient, nameof(featureClient));
         ArgumentNullException.ThrowIfNull(distributedCache, nameof(distributedCache));
         ArgumentNullException.ThrowIfNull(eventService, nameof(eventService));
+        ArgumentNullException.ThrowIfNull(cacheService, nameof(cacheService));
 
         _scheduleRepository = scheduleRepository;
         _distributedCache = distributedCache;
         _featureClient = featureClient;
         _taskService = taskService;
         _eventService = eventService;
+        _cacheService = cacheService;
         _logger = logger;
     }
 
@@ -52,8 +60,14 @@ public class ScheduleService : IScheduleService
     {
         var startTimestamp = DateTimeOffset.UtcNow;
 
-        var (isEnabled, calcDisplayEnabled, historyEnabled, forceCalculate) = await GetPollFeatureFlagDetailsAsync(
+        var evaluatedFeatures = await GetPollFeatureFlagDetailsAsync(
             token);
+        
+        // TODO: Reference result model props directly
+        var isEnabled = evaluatedFeatures.IsSchedulerEnabled;
+        var calcDisplayEnabled = evaluatedFeatures.IsCalculationDetailEnabled;
+        var historyEnabled = evaluatedFeatures.IsHistoryEnabled;
+        var forceCalculate = evaluatedFeatures.IsForceCalculateTimestampsEnabled;
 
         _logger.LogInformation(
               "{@Method}: {@IsSchedulerEnabled}: {@IsCalculationDisplayEnabled}: {@IsScheduleHistoryEnabled}: Feature flags",
@@ -592,8 +606,23 @@ public class ScheduleService : IScheduleService
     private async Task<IEnumerable<ScheduleModel>> GetActiveSchedulesAsync(
         CancellationToken token)
     {
-        var schedules = await _scheduleRepository.GetAll(
-            token);
+        var schedules = await _cacheService.GetAsync<IEnumerable<ScheduleItem>>(
+            CacheKey.ActiveSchedules());
+
+        if (schedules == null)
+        {
+            _logger.LogInformation(
+                "{@Method}: Fetching active schedules from database",
+                Caller.GetName());
+
+            schedules = await _scheduleRepository.GetAll(
+                token);
+
+            await _cacheService.SetAsync(
+                CacheKey.ActiveSchedules(),
+                schedules,
+                60); 
+        }
 
         var activeSchedules = schedules
             .Where(x => x.IsActive ?? true)
@@ -602,9 +631,18 @@ public class ScheduleService : IScheduleService
         return activeSchedules.Select(x => x.ToDomain());
     }
 
-    private async Task<(bool poll, bool calcDisplay, bool history, bool forceCalculate)> GetPollFeatureFlagDetailsAsync(
+    private async Task<FeatureEvaluationResult> GetPollFeatureFlagDetailsAsync(
         CancellationToken cancellationToken = default)
     {
+        var evaluatedFeatures = await _cacheService.GetAsync<FeatureEvaluationResult>(
+            CacheKey.FeatureFlags());
+
+        if (evaluatedFeatures != null)
+        {
+            return evaluatedFeatures;
+        }
+
+        // Fetch flags in parallel
         var results = await Task.WhenAll(
             _featureClient.EvaluateFeature(
                 Feature.NetScheduler,
@@ -615,16 +653,22 @@ public class ScheduleService : IScheduleService
             _featureClient.EvaluateFeature(
                 Feature.SchedulerExecutionHistory, 
                 cancellationToken),
-             _featureClient.EvaluateFeature(
+            _featureClient.EvaluateFeature(
                 Feature.NetSchedulerCalculateTimestamps,
                 cancellationToken));
 
-        return (
+        evaluatedFeatures = new FeatureEvaluationResult(
             results[0],
             results[1],
             results[2],
-            results[3]
-        );
+            results[3]);
+
+        await _cacheService.SetAsync(
+            CacheKey.FeatureFlags(),
+            evaluatedFeatures,
+            30);
+
+        return evaluatedFeatures;
     }
 
     private async Task InitializeScheduleAsync(
