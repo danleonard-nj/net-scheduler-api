@@ -3,6 +3,7 @@ using Cronos;
 using NetScheduler.Data.Entities;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
+using NetScheduler.Services.Schedules.Helpers;
 using System.Text.Json;
 
 public static class ScheduleExtensions
@@ -124,11 +125,15 @@ public static class ScheduleExtensions
 
     public static CronExpression GetCronExpression(this ScheduleModel schedule)
     {
-        var cronFormat = schedule.IncludeSeconds
-            ? CronFormat.IncludeSeconds
-            : CronFormat.Standard;
+        if (!CronExpressionParser.TryParse(
+            schedule.Cron,
+            schedule.IncludeSeconds,
+            out var expression))
+        {
+            throw new ArgumentException($"Invalid CRON expression: {schedule.Cron}", nameof(schedule.Cron));
+        }
 
-        return CronExpression.Parse(schedule.Cron, cronFormat);
+        return expression;
     }
 
     public static bool GetScheduleInvocationState(this ScheduleModel schedule)

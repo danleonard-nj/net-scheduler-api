@@ -11,6 +11,7 @@ using NetScheduler.Services.History.Extensions;
 using NetScheduler.Services.Schedules.Abstractions;
 using NetScheduler.Services.Schedules.Exceptions;
 using NetScheduler.Services.Schedules.Extensions;
+using NetScheduler.Services.Schedules.Helpers;
 using NetScheduler.Services.Tasks.Abstractions;
 using System.Threading.Tasks;
 
@@ -151,6 +152,11 @@ public class ScheduleService : IScheduleService
             "{@Method}: Schedule poll cycle completed in {@MillisecondsElapsed} ms",
             Caller.GetName(),
             elapsed.TotalMilliseconds);
+
+        _logger.LogInformation(
+            "{Method}: Cached CRON expressions: {@Count}",
+            Caller.GetName(),
+            CronExpressionParser.GetParsedExpressionCache().Count);
 
         return Enumerable.Empty<TaskExecutionResult>();
     }
@@ -456,8 +462,6 @@ public class ScheduleService : IScheduleService
                 schedule.ScheduleId,
                 schedule.ScheduleName);
 
-            schedule.UpdateLastRuntime();
-
             var updatedSchedule = UpdateScheduleRuntimes(
                 schedule);
 
@@ -493,6 +497,10 @@ public class ScheduleService : IScheduleService
     private ScheduleModel UpdateScheduleRuntimes(
         ScheduleModel schedule)
     {
+        // Update the last schedule runtime
+        schedule.UpdateLastRuntime();
+
+        // Parse the schedule cron expression
         var expression = schedule.GetCronExpression();
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(
