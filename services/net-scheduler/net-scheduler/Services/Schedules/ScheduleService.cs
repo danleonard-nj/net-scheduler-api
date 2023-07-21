@@ -1,16 +1,12 @@
 ﻿namespace NetScheduler.Services.Schedules;
-
 using Microsoft.Extensions.Caching.Distributed;
-using MongoDB.Bson.IO;
 using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
-using NetScheduler.Data.Entities;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
 using NetScheduler.Services.Events.Abstractions;
-using NetScheduler.Services.Extensions;
 using NetScheduler.Services.History.Extensions;
 using NetScheduler.Services.Schedules.Abstractions;
 using NetScheduler.Services.Schedules.Exceptions;
@@ -53,6 +49,8 @@ public class ScheduleService : IScheduleService
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
+        var startTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
         var (isEnabled, calcDisplayEnabled, historyEnabled, forceCalculate) = await GetPollFeatureFlagDetailsAsync(
             token);
 
@@ -145,6 +143,15 @@ public class ScheduleService : IScheduleService
                 historyEnabled,
                 token);
         }
+
+        var endTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        // Log schedule processing time
+        _logger.LogInformation(
+            "{@Method}: {@ScheduleCount}: {@SecondsElapsed}: Schedule poll cycle complete",
+            Caller.GetName(),
+            activeSchedules.Count(),
+            endTimestamp - startTimestamp);
 
         return Enumerable.Empty<TaskExecutionResult>();
     }
