@@ -9,17 +9,17 @@ public static class ScheduleHistoryExtensions
 {
     public static ScheduleHistoryModel ToScheduleHistoryModel(
         this ScheduleModel scheduleModel,
-        IEnumerable<TaskModel> tasks,
+        IEnumerable<(TaskModel task, string invocationId)> tasks,
         int scheduleRuntime,
         bool isManualTrigger = false)
     {
         var taskHistoryEntries = tasks.Select(task => new ScheduleTaskHistoryModel
         {
             ScheduleHistoryTaskId = Guid.NewGuid().ToString(),
-            TaskId = task.TaskId,
-            TaskName = task.TaskName
+            TaskId = task.task.TaskId,
+            TaskName = task.task.TaskName,
+            InvocationId = task.invocationId
         });
-
 
         return new ScheduleHistoryModel
         {

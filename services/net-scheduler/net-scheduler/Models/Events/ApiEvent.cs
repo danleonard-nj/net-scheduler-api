@@ -18,6 +18,8 @@ public class ApiEvent
 
     public string? ClientId { get; set; }
 
+    public string? InvocationId { get; set; }
+
     public void WithHeaders(object? headers)
     {
         Headers = headers;

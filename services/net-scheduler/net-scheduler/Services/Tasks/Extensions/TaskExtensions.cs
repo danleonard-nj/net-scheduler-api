@@ -6,7 +6,8 @@ public static class TaskExtensions
 {
     public static ApiEvent ToApiEvent(
         this TaskModel task,
-        string token)
+        string token,
+        string invocationId)
     {
         var headers = new
         {
@@ -20,7 +21,8 @@ public static class TaskExtensions
             Body = task.Payload,
             Headers = headers,
             ClientId = task.IdentityClientId,
-            EventKey = task.TaskName
+            EventKey = task.TaskName,
+            InvocationId = invocationId
         };
     }
 }

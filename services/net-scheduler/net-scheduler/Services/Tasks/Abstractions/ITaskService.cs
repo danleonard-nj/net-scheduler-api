@@ -8,7 +8,7 @@ public interface ITaskService
 
     Task DeleteTask(string taskId, CancellationToken token);
 
-    Task<IEnumerable<TaskModel>> ExecuteTasksAsync(
+    Task<IEnumerable<(TaskModel task, string invocationId)>> ExecuteTasksAsync(
         IEnumerable<string> taskIds,
         string scheduleId,
         CancellationToken token);

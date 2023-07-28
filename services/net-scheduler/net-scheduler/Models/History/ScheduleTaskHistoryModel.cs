@@ -7,4 +7,6 @@ public class ScheduleTaskHistoryModel
     public string TaskId { get; set; }
 
     public string TaskName { get; set; }
+
+    public string InvocationId { get; set; }
 }

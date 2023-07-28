@@ -180,7 +180,7 @@ public class TaskService : ITaskService
             count);
     }
 
-    public async Task<IEnumerable<TaskModel>> ExecuteTasksAsync(
+    public async Task<IEnumerable<(TaskModel task, string invocationId)>> ExecuteTasksAsync(
         IEnumerable<string> taskIds,
         string scheduleId,
         CancellationToken token)
@@ -202,8 +202,10 @@ public class TaskService : ITaskService
                 Caller.GetName(),
                 scheduleId);
 
-            return Enumerable.Empty<TaskModel>();
+            return Enumerable.Empty<(TaskModel, string)>();
         }
+
+        var results = new List<(TaskModel, string)>();
 
         var entities = await _taskRepository.GetTasksAsync(
             taskIds,
@@ -234,20 +236,37 @@ public class TaskService : ITaskService
                     $"No token fetched for client {task.IdentityClientId}");
             }
 
+            var invocationId = Guid.NewGuid().ToString();
+
+            _logger.LogInformation(
+                "{@Method}: {@TaskId}: {@TaskName}: {@InvocationId}: Creating service bus event",
+                Caller.GetName(),
+                task.TaskId,
+                task.TaskName,
+                invocationId);
+
             // Create service bus event to run the triggered
             // task
             var eventMessage = CreateEventMessage(
                 task,
-                clientToken);
+                clientToken,
+                invocationId);
 
             eventMessages.Add(eventMessage);
+            results.Add((task, invocationId));
         }
 
         await _eventService.DispatchEventsAsync(
             eventMessages,
             token);
 
-        return scheduleTasks;
+        _logger.LogInformation(
+            "{@Method}: {@ScheduleId}: {@TaskIds}: Dispatched events",
+            Caller.GetName(),
+            scheduleId,
+            taskIds);
+
+        return results;
     }
 
     public async Task<TokenModel> GetTokenAsync(string appId)
@@ -259,7 +278,8 @@ public class TaskService : ITaskService
 
     private ApiEvent CreateEventMessage(
         TaskModel task,
-        string token)
+        string token,
+        string invocationId)
     {
         if (string.IsNullOrWhiteSpace(task.IdentityClientId))
         {
@@ -296,7 +316,8 @@ public class TaskService : ITaskService
         }
 
         var taskEventMessage = task.ToApiEvent(
-            token);
+            token,
+            invocationId);
 
         _logger.LogInformation(
            "{@Method}: {@TaskId}: {@TaskName}: {@ApiEvent}: Event to dispatch",
