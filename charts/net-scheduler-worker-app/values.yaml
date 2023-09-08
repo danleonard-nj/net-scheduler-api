@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  repository: azureks.azurecr.io/kube-tools/net-scheduler-worker-app
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets:
+  - name: regcred
+
+nameOverride: "net-scheduler-worker-app"
+fullnameOverride: "net-scheduler-worker-app"
+
+environment:
+  environmentVariables: []
+  environmentSecrets:
+    - name: az-client-id
+      key: AZURE_CLIENT_ID
+    - name: az-client-secret
+      key: AZURE_CLIENT_SECRET
+    - name: az-tenant-id
+      key: AZURE_TENANT_ID
+   
+
+serviceAccount:
+  create: true
+  name: "net-scheduler-worker-app"
+
+service:
+  type: ClusterIP
+  port: 80
+  name: "net-scheduler-worker-app"
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 125m
+    memory: 250Mi
+  requests:
+    cpu: 75m
+    memory: 50Mi
+    
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 85
+  targetMemoryUtilizationPercentage: 90
