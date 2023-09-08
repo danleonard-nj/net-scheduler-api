@@ -20,8 +20,6 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-RUN apt-get update -y
-RUN apt-get install vim -y
-RUN apt-get install htop -y
+RUN apt-get update -
 RUN apt-get update && apt-get dist-upgrade -y
 ENTRYPOINT ["dotnet", "net-scheduler.dll"]
