@@ -112,14 +112,10 @@ public class EventService : IEventService
            Caller.GetName(),
            apiEvents.Count());
 
-        var sendEvents = apiEvents
-            .Chunk(10)
-            .Select(async eventBatch =>
-            {
-                await SendBatchMessagesAsync(eventBatch);
-            });
-
-        await Task.WhenAll(sendEvents);
+        foreach (var batch in apiEvents.Chunk(10))
+        {
+            await SendBatchMessagesAsync(batch);
+        }
     }
 
     public async Task DispatchScheduleHistoryEventAsync(

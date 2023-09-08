@@ -586,7 +586,7 @@ public class ScheduleService : IScheduleService
         var runTasks = schedules.Select(async sched =>
         {
             var tasks = await _taskService.ExecuteTasksAsync(
-                sched.Schedule.Links,
+                sched.Schedule.Links.Distinct(),
                 sched.Schedule.ScheduleId,
                 token);
 
