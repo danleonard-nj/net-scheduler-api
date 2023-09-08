@@ -60,8 +60,8 @@ public class ScheduleService : IScheduleService
     {
         if (PollState.IsPolling)
         {
-            _logger.LogInformation(
-                "{@Method}: Active poll is currently in progress",
+            _logger.LogWarning(
+                "{@Method}: Warning! Active poll is currently in progress",
                 Caller.GetName());
 
             return Enumerable.Empty<TaskExecutionResult>();
@@ -139,8 +139,15 @@ public class ScheduleService : IScheduleService
                 // execution queue
                 if (isTriggered)
                 {
-                    executionQueue.Add(schedule
-                        .ToTriggeredScheduleModel());
+                    _logger.LogInformation(
+                        "{@Method}: {@ScheduleId}: {@ScheduleName}: {@IsTriggered}: {@TimeRemaining}: Adding schedule to execution queue",
+                        Caller.GetName(),
+                        schedule.ScheduleId,
+                        schedule.ScheduleName,
+                        isTriggered,
+                        schedule.GetTimeRemaining());
+
+                    executionQueue.Add(schedule.ToTriggeredScheduleModel());
                 }
             }
             catch (Exception ex)
@@ -582,36 +589,49 @@ public class ScheduleService : IScheduleService
         var schedules = triggeredSchedules
             .Where(x => x.Schedule.Links.Any());
 
-        // Execute triggered schedule tasks
-        var runTasks = schedules.Select(async sched =>
-        {
-            var tasks = await _taskService.ExecuteTasksAsync(
-                sched.Schedule.Links.Distinct(),
-                sched.Schedule.ScheduleId,
-                token);
+        var links = schedules
+            .SelectMany(x => x.Schedule.Links)
+            .Distinct();
 
-            if (isHistoryEnabled)
-            {
-                _logger.LogInformation(
-                    "{@Method}: {@ScheduleId}: {@ScheduleName}: Dispatching scheduler history task",
-                    Caller.GetName(),
-                    sched.Schedule.ScheduleId,
-                    sched.Schedule.ScheduleName);
+        _logger.LogInformation(
+            "{@Method}: {@Links}: Triggered schedule linked tasks",
+            Caller.GetName(),
+            links);
 
-                var scheduleHistory = sched.Schedule
-                    .ToScheduleHistoryModel(
-                        tasks,
-                        sched.Schedule.NextRuntime,
-                        sched.IsManual);
+        var tasks = await _taskService.ExecuteTasksAsync(
+            links,
+            token);
 
-                // Dispatch the event to write back schedule
-                // execution history
-                await _eventService.DispatchScheduleHistoryEventAsync(
-                   scheduleHistory);
-            }           
-        });
+        //// Execute triggered schedule tasks
+        //var runTasks = schedules.Select(async sched =>
+        //{
+        //    var tasks = await _taskService.ExecuteTasksAsync(
+        //        sched.Schedule.Links.Distinct(),
+        //        sched.Schedule.ScheduleId,
+        //        token);
 
-        await Task.WhenAll(runTasks);
+        //    if (isHistoryEnabled)
+        //    {
+        //        _logger.LogInformation(
+        //            "{@Method}: {@ScheduleId}: {@ScheduleName}: Dispatching scheduler history task",
+        //            Caller.GetName(),
+        //            sched.Schedule.ScheduleId,
+        //            sched.Schedule.ScheduleName);
+
+        //        var scheduleHistory = sched.Schedule
+        //            .ToScheduleHistoryModel(
+        //                tasks,
+        //                sched.Schedule.NextRuntime,
+        //                sched.IsManual);
+
+        //        // Dispatch the event to write back schedule
+        //        // execution history
+        //        await _eventService.DispatchScheduleHistoryEventAsync(
+        //           scheduleHistory);
+        //    }           
+        //});
+
+        //await Task.WhenAll(runTasks);
 
         return allTriggeredSchedules;
     }

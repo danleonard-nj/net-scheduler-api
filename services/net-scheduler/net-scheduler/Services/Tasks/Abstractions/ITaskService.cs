@@ -10,7 +10,6 @@ public interface ITaskService
 
     Task<IEnumerable<(TaskModel task, string invocationId)>> ExecuteTasksAsync(
         IEnumerable<string> taskIds,
-        string scheduleId,
         CancellationToken token);
 
     Task<TaskModel> GetTask(string taskId, CancellationToken token);

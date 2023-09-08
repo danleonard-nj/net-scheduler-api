@@ -181,43 +181,36 @@ public class TaskService : ITaskService
     }
 
     public async Task<IEnumerable<(TaskModel task, string invocationId)>> ExecuteTasksAsync(
-        IEnumerable<string> taskIds,
-        string scheduleId,
+        IEnumerable<string> tasks,
         CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(scheduleId))
-        {
-            throw new ArgumentNullException(nameof(scheduleId));
-        }
+        ArgumentNullException.ThrowIfNull(tasks, nameof(tasks));
 
         _logger.LogInformation(
-            "{@Method}: {@ScheduleId}: Executing schedule tasks",
+            "{@Method}: {@TaskIds}: Executing tasks",
             Caller.GetName(),
-            scheduleId);
+            tasks);
 
-        if (!taskIds.Any())
+        if (!tasks .Any())
         {
             _logger.LogInformation(
-                "{@Method}: {@ScheduleId}: No associated tasks to execute",
-                Caller.GetName(),
-                scheduleId);
+                "{@Method}: No associated tasks to execute",
+                Caller.GetName());
 
             return Enumerable.Empty<(TaskModel, string)>();
         }
 
         var results = new List<(TaskModel, string)>();
 
-        var entities = await _taskRepository.GetTasksAsync(
-            taskIds,
-            token);
-
-        var scheduleTasks = entities
-            .Select(x => x.ToDomain());
+        // Fetch the tasks from the database
+        var scheduleTasks = await GetTasksAsync(tasks, token);
 
         var clientIds = scheduleTasks
             .Select(x => x.IdentityClientId)
             .Distinct();
 
+        // Fetch the tokens for the identity clients configured
+        // to run the invoked tasks
         var clientTokens = await _identityService.GetClientTokensAsync(
             clientIds,
             token);
@@ -256,15 +249,22 @@ public class TaskService : ITaskService
             results.Add((task, invocationId));
         }
 
+        _logger.LogInformation(
+            "{@Method}: {@TaskIds}: {@EventCount}: Dispatching events",
+            Caller.GetName(),
+            tasks,
+            eventMessages?.Count() ?? 0);
+
+        // Dispatch the events to run the tasks
         await _eventService.DispatchEventsAsync(
             eventMessages,
             token);
 
         _logger.LogInformation(
-            "{@Method}: {@ScheduleId}: {@TaskIds}: Dispatched events",
+            "{@Method}: {@TaskIds}: {@EventCount}: Dispatched events",
             Caller.GetName(),
-            scheduleId,
-            taskIds);
+            tasks,
+            eventMessages?.Count() ?? 0);
 
         return results;
     }
@@ -274,6 +274,21 @@ public class TaskService : ITaskService
         var token = await _tokenAcquisition.GetAccessTokenForAppAsync(appId);
 
         return new TokenModel(token);
+    }
+
+    private async Task<IEnumerable<TaskModel>> GetTasksAsync(
+        IEnumerable<string> taskIds,
+        CancellationToken cancellationToken = default)
+    {
+        // Fetch the tasks from the database
+        var entities = await _taskRepository.GetTasksAsync(
+            taskIds,
+            cancellationToken);
+
+        var scheduleTasks = entities
+            .Select(x => x.ToDomain());
+
+        return scheduleTasks;
     }
 
     private ApiEvent CreateEventMessage(
