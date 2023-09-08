@@ -1,4 +1,0 @@
-httpx
-framework==0.2.8
-uvloop
-uvicorn
