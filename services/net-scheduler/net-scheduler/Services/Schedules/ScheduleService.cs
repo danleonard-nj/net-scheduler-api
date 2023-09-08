@@ -59,16 +59,7 @@ public class ScheduleService : IScheduleService
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
     {
-        if (PollState.IsPolling)
-        {
-            _logger.LogWarning(
-                "{@Method}: Warning! Active poll is currently in progress",
-                Caller.GetName());
-
-            return Enumerable.Empty<TaskExecutionResult>();
-        }
-
-        PollState.SetPolling(true);
+        PollState.SetPolling(false);
 
         var startTimestamp = DateTimeOffset.UtcNow;
 
