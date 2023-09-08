@@ -1,12 +1,10 @@
 ﻿namespace NetScheduler.Services.Schedules;
 
-using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Caching.Distributed;
 using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
-using NetScheduler.Data.Entities;
 using NetScheduler.Models.Cache;
 using NetScheduler.Models.Features;
 using NetScheduler.Models.History;
@@ -616,73 +614,6 @@ public class ScheduleService : IScheduleService
         HandleSchedulerHistoryAsync(
             schedules,
             tasks);
-
-        //var history = new List<ScheduleHistoryModel>();
-
-        //var taskLookup = tasks.ToDictionary(x => x.task.TaskId);
-
-        //// Build the schedule invocation history
-        //foreach (var schedule in schedules)
-        //{
-        //    var invocation = new ScheduleHistoryModel();
-
-        //    // Lookup the tasks and add them to the history
-        //    var invocationTasks = new List<ScheduleTaskHistoryModel>();
-
-        //    foreach (var taskId in schedule.Schedule.Links)
-        //    {
-        //        // Get the task and the invocations from run results
-        //        if (taskLookup.TryGetValue(taskId, out var result))
-        //        {
-        //            var (task, invocationId) = result;
-
-        //            invocationTasks.Add(new ScheduleTaskHistoryModel
-        //            {
-        //                InvocationId = invocationId,
-        //                ScheduleHistoryTaskId = Guid.NewGuid().ToString(),
-        //                TaskId = task.TaskId,
-        //                TaskName = task.TaskName
-        //            });
-        //        }
-        //    }
-        //}
-
-        //var scheduleHistory = schedules
-        //    .Select(x => x.Schedule.ToScheduleHistoryModel(
-        //        tasks,
-        //        x.Schedule.NextRuntime,
-        //        x.IsManual));
-
-        //// Execute triggered schedule tasks
-        //var runTasks = schedules.Select(async sched =>
-        //{
-        //    var tasks = await _taskService.ExecuteTasksAsync(
-        //        sched.Schedule.Links.Distinct(),
-        //        sched.Schedule.ScheduleId,
-        //        token);
-
-        //    if (isHistoryEnabled)
-        //    {
-        //        _logger.LogInformation(
-        //            "{@Method}: {@ScheduleId}: {@ScheduleName}: Dispatching scheduler history task",
-        //            Caller.GetName(),
-        //            sched.Schedule.ScheduleId,
-        //            sched.Schedule.ScheduleName);
-
-        //        var scheduleHistory = sched.Schedule
-        //            .ToScheduleHistoryModel(
-        //                tasks,
-        //                sched.Schedule.NextRuntime,
-        //                sched.IsManual);
-
-        //        // Dispatch the event to write back schedule
-        //        // execution history
-        //        await _eventService.DispatchScheduleHistoryEventAsync(
-        //           scheduleHistory);
-        //    }           
-        //});
-
-        //await Task.WhenAll(runTasks);
 
         return allTriggeredSchedules;
     }
