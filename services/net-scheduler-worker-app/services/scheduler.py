@@ -33,6 +33,7 @@ class SchedulerService:
             headers=headers)
 
         logger.info(f'Response: {response.status_code}')
+        logger.info(f'Content: {response.json()}')
 
         return response.json()
 
