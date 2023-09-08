@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "net-scheduler-worker-app.name" -}}
+{{- define "net-scheduler-worker.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "net-scheduler-worker-app.fullname" -}}
+{{- define "net-scheduler-worker.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "net-scheduler-worker-app.chart" -}}
+{{- define "net-scheduler-worker.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "net-scheduler-worker-app.labels" -}}
-helm.sh/chart: {{ include "net-scheduler-worker-app.chart" . }}
-{{ include "net-scheduler-worker-app.selectorLabels" . }}
+{{- define "net-scheduler-worker.labels" -}}
+helm.sh/chart: {{ include "net-scheduler-worker.chart" . }}
+{{ include "net-scheduler-worker.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "net-scheduler-worker-app.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "net-scheduler-worker-app.name" . }}
+{{- define "net-scheduler-worker.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "net-scheduler-worker.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "net-scheduler-worker-app.serviceAccountName" -}}
+{{- define "net-scheduler-worker.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "net-scheduler-worker-app.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "net-scheduler-worker.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
