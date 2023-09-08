@@ -199,20 +199,26 @@ public class EventService : IEventService
         foreach (var apiEvent in events)
         {
             _logger.LogInformation(
-                "{@Method}: {@Json}: Adding event to batch",
+                "{@Method}: {@Endpoint}: {@EventKey}: Adding event to batch",
                 Caller.GetName(),
-                apiEvent.GetJson());
+                apiEvent.Endpoint,
+                apiEvent.EventKey);
 
             if (!batch.TryAddMessage(apiEvent.ToServiceBusMessage()))
             {
-                
+                _logger.LogInformation(
+                    "{@Method}: {@Endpoint}: {@EventKey}: Failed to add message to batch",
+                    Caller.GetName(),
+                    apiEvent.Endpoint,
+                    apiEvent.EventKey);
+
                 throw new EventBatchDispatchException(
                     $"Failed to add message to batch: {JsonSerializer.Serialize(apiEvent)}");
             }
+        }
 
-            await sender.SendMessagesAsync(
+        await sender.SendMessagesAsync(
                 batch,
                 cancellationToken);
-        }
     }
 }

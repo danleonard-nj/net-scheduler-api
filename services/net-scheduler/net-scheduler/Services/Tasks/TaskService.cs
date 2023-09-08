@@ -191,7 +191,7 @@ public class TaskService : ITaskService
             Caller.GetName(),
             tasks);
 
-        if (!tasks .Any())
+        if (!tasks.Any())
         {
             _logger.LogInformation(
                 "{@Method}: No associated tasks to execute",
@@ -217,7 +217,7 @@ public class TaskService : ITaskService
 
         var eventMessages = new List<ApiEvent>();
 
-        foreach (var task in scheduleTasks)
+        foreach (var task in scheduleTasks.DistinctBy(x => x.TaskId))
         {
             // Get the token for the identity client configured
             // for the task

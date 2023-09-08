@@ -65,7 +65,7 @@ public class ScheduleService : IScheduleService
 
         var evaluatedFeatures = await GetPollFeatureFlagDetailsAsync(
             token);
-        
+
         // TODO: Reference result model props directly
         var isEnabled = evaluatedFeatures.IsSchedulerEnabled;
         var calcDisplayEnabled = evaluatedFeatures.IsCalculationDetailEnabled;
@@ -182,10 +182,9 @@ public class ScheduleService : IScheduleService
             Caller.GetName(),
             CronExpressionParser.GetParsedExpressionCache().Count);
 
-        PollState.SetPolling(false);
-
-        return Enumerable.Empty<TaskExecutionResult>();
+        return executionQueue.SelectMany(x => x.Schedule.Links).Select(x => new TaskExecutionResult(x));
     }
+  
 
     public async Task<ScheduleModel> GetSchedule(
         string scheduleId,
@@ -602,7 +601,7 @@ public class ScheduleService : IScheduleService
 
         // Purposely not awaiting this call to avoid blocking
         // TODO: Configure await necessary here?
-        HandleSchedulerHistoryAsync(
+        await HandleSchedulerHistoryAsync(
             schedules,
             tasks);
 
