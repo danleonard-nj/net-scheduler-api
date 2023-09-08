@@ -119,30 +119,71 @@ public class EventService : IEventService
     }
 
     public async Task DispatchScheduleHistoryEventAsync(
-        ScheduleHistoryModel scheduleHistoryModel,
+        IEnumerable<ScheduleHistoryModel> scheduleHistoryModel,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(scheduleHistoryModel, nameof(scheduleHistoryModel));
+
+        // Get the headers for the event to post back to the service
         var authHeaders = await _identityService.GetAuthorizationHeadersAsync(
             _eventConfiguration.ApplicationScope,
             cancellationToken);
 
-        var apiEvent = new CreateScheduleHistoryEvent(
+        // Create the event to store the scheduler history data
+        var apiEvents = scheduleHistoryModel.Select(s => new CreateScheduleHistoryEvent(
             _eventConfiguration.ApplicationBaseUrl,
             authHeaders,
-            scheduleHistoryModel);
+            s));
 
         _logger.LogInformation(
-            "{@Method}: {@ScheduleId}: {@ScheduleName}: Create schedule history event received",
+            "{@Method}: {@HistoryRequests}: Create schedule history events created for dispatch",
             Caller.GetName(),
-            scheduleHistoryModel.ScheduleId,
-            scheduleHistoryModel.ScheduleName);
+            scheduleHistoryModel?.Count());
+
+        //var apiEvent = new CreateScheduleHistoryEvent(
+        //    _eventConfiguration.ApplicationBaseUrl,
+        //    authHeaders,
+        //    scheduleHistoryModel);
+
+        _logger.LogInformation(
+            "{@Method}: {@HistoryRequests}: Getting service bus queue sender",
+            Caller.GetName(),
+            scheduleHistoryModel?.Count());
 
         var sender = _client.CreateSender(
             _eventConfiguration.ApiTriggerQueue);
 
-        await sender.SendMessageAsync(
-            apiEvent.ToServiceBusMessage(),
-            cancellationToken);
+        var chunk = 1;
+        foreach (var batch in apiEvents.Chunk(10))
+        {
+            _logger.LogInformation(
+               "{@Method}: {@BatchNumber}: Sending message batch",
+               Caller.GetName(),
+               chunk);
+
+            // Create a batch for the messages
+            var messageBatch = await sender.CreateMessageBatchAsync(
+                cancellationToken);
+
+            foreach (var message in batch)
+            {
+                // If we fail to add the message to the batch
+                if (!messageBatch.TryAddMessage(message.ToServiceBusMessage()))
+                {
+                    _logger.LogWarning(
+                        "{@Method}: {@Message}: Failed to add message to batch for scheduler history",
+                        Caller.GetName(),
+                        message);
+
+                    // Throw so we don't store the incomplete history
+                    throw new Exception($"Failed to add message to batch for scheduler history");
+                }
+            }
+
+
+            await SendBatchMessagesAsync(batch);
+            chunk++;
+        }
     }
 
     private async Task SendBatchMessagesAsync(

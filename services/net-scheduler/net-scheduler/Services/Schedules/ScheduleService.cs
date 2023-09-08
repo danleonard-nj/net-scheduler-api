@@ -1,4 +1,6 @@
 ﻿namespace NetScheduler.Services.Schedules;
+
+using Microsoft.Extensions.Azure;
 using Microsoft.Extensions.Caching.Distributed;
 using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
@@ -7,6 +9,7 @@ using NetScheduler.Data.Abstractions;
 using NetScheduler.Data.Entities;
 using NetScheduler.Models.Cache;
 using NetScheduler.Models.Features;
+using NetScheduler.Models.History;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
 using NetScheduler.Services.Cache.Abstractions;
@@ -593,6 +596,12 @@ public class ScheduleService : IScheduleService
             .SelectMany(x => x.Schedule.Links)
             .Distinct();
 
+        // If no triggered schedules have linked tasks
+        if (!links.Any())
+        {
+            return allTriggeredSchedules;
+        }
+
         _logger.LogInformation(
             "{@Method}: {@Links}: Triggered schedule linked tasks",
             Caller.GetName(),
@@ -601,6 +610,48 @@ public class ScheduleService : IScheduleService
         var tasks = await _taskService.ExecuteTasksAsync(
             links,
             token);
+
+        // Purposely not awaiting this call to avoid blocking
+        // TODO: Configure await necessary here?
+        HandleSchedulerHistoryAsync(
+            schedules,
+            tasks);
+
+        //var history = new List<ScheduleHistoryModel>();
+
+        //var taskLookup = tasks.ToDictionary(x => x.task.TaskId);
+
+        //// Build the schedule invocation history
+        //foreach (var schedule in schedules)
+        //{
+        //    var invocation = new ScheduleHistoryModel();
+
+        //    // Lookup the tasks and add them to the history
+        //    var invocationTasks = new List<ScheduleTaskHistoryModel>();
+
+        //    foreach (var taskId in schedule.Schedule.Links)
+        //    {
+        //        // Get the task and the invocations from run results
+        //        if (taskLookup.TryGetValue(taskId, out var result))
+        //        {
+        //            var (task, invocationId) = result;
+
+        //            invocationTasks.Add(new ScheduleTaskHistoryModel
+        //            {
+        //                InvocationId = invocationId,
+        //                ScheduleHistoryTaskId = Guid.NewGuid().ToString(),
+        //                TaskId = task.TaskId,
+        //                TaskName = task.TaskName
+        //            });
+        //        }
+        //    }
+        //}
+
+        //var scheduleHistory = schedules
+        //    .Select(x => x.Schedule.ToScheduleHistoryModel(
+        //        tasks,
+        //        x.Schedule.NextRuntime,
+        //        x.IsManual));
 
         //// Execute triggered schedule tasks
         //var runTasks = schedules.Select(async sched =>
@@ -636,6 +687,59 @@ public class ScheduleService : IScheduleService
         return allTriggeredSchedules;
     }
 
+    private async Task<IEnumerable<ScheduleHistoryModel>> HandleSchedulerHistoryAsync(
+        IEnumerable<TriggeredScheduleModel> schedules,
+        IEnumerable<(TaskModel task, string invocationId)> tasks,
+        CancellationToken cancellationToken = default)
+    {
+        var history = new List<ScheduleHistoryModel>();
+
+        var taskLookup = tasks.ToDictionary(x => x.task.TaskId);
+
+        // Build the schedule invocation history
+        foreach (var schedule in schedules)
+        {
+            // Lookup the tasks and add them to the history
+            var invocationTasks = new List<ScheduleTaskHistoryModel>();
+
+            foreach (var taskId in schedule.Schedule.Links)
+            {
+                // Get the task and the invocations from run results
+                if (taskLookup.TryGetValue(taskId, out var result))
+                {
+                    var (task, invocationId) = result;
+
+                    invocationTasks.Add(new ScheduleTaskHistoryModel
+                    {
+                        InvocationId = invocationId,
+                        ScheduleHistoryTaskId = Guid.NewGuid().ToString(),
+                        TaskId = task.TaskId,
+                        TaskName = task.TaskName
+                    });
+                }
+            }
+
+            var invocation = new ScheduleHistoryModel
+            {
+                ScheduleHistoryId = Guid.NewGuid().ToString(),
+                ScheduleId = schedule.Schedule.ScheduleId,
+                TriggerDate = schedule.Schedule.LastRuntime,
+                IsManualTrigger = schedule.IsManual,
+                ScheduleName = schedule.Schedule.ScheduleName,
+                Tasks = invocationTasks,
+                CreatedDate = GetTimestamp()
+            };
+
+            history.Add(invocation);
+        }
+
+        await _eventService
+            .DispatchScheduleHistoryEventAsync(history,cancellationToken)
+            .ConfigureAwait(false);
+
+        return history;
+    }
+
     private async Task<IEnumerable<ScheduleModel>> GetActiveSchedulesAsync(
         CancellationToken token)
     {
@@ -647,6 +751,11 @@ public class ScheduleService : IScheduleService
             .ToList();
 
         return activeSchedules.Select(x => x.ToDomain());
+    }
+
+    private static int GetTimestamp()
+    {
+        return (int)DateTimeOffset.Now.ToUnixTimeSeconds();
     }
 
     private async Task<FeatureEvaluationResult> GetPollFeatureFlagDetailsAsync(

@@ -18,6 +18,6 @@ public interface IEventService
         CancellationToken cancellationToken = default);
 
     Task DispatchScheduleHistoryEventAsync(
-        ScheduleHistoryModel scheduleHistoryModel,
+        IEnumerable<ScheduleHistoryModel> scheduleHistoryModel,
         CancellationToken cancellationToken = default);
 }
