@@ -11,14 +11,10 @@ ENV ARTIFACT_INDEX=https://${ARTIFACT_FEED}:${ARTIFACT_FEED_TOKEN}@pkgs.dev.azur
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt --extra-index-url=${ARTIFACT_INDEX}
 
-RUN pip install uvloop
-RUN pip install uvicorn
-
 COPY . .
 
 COPY liveness.py /var/liveness.py
 
 RUN apt-get update && apt-get dist-upgrade -y
-EXPOSE 80
 
-CMD ["bash", "startup.sh"]
+CMD ["python", "app.py"]
