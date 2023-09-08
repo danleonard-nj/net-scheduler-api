@@ -50,10 +50,6 @@ spec:
             - name: {{ .name }}
               value: {{ .value }}
             {{- end }} 
-          ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
           livenessProbe:
             exec:
               command:
