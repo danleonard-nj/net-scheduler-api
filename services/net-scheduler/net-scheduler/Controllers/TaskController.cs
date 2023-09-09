@@ -3,6 +3,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NetScheduler.Models.Tasks;
+using NetScheduler.Services;
 using NetScheduler.Services.Tasks.Abstractions;
 using System.Net;
 using System.Threading;
@@ -14,6 +15,7 @@ using System.Threading.Tasks;
 public class TaskController : ControllerBase
 {
     private readonly ITaskService _scheduleTaskService;
+    private readonly ITaskCategoryService _taskCategoryService;
     private readonly ILogger<TaskController> _logger;
 
     public TaskController(
@@ -144,6 +146,92 @@ public class TaskController : ControllerBase
                 appId);
 
             return Ok(token);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(
+                (int)HttpStatusCode.InternalServerError,
+                new
+                {
+                    ex.Message
+                });
+        }
+    }
+
+    [HttpPost("Category")]
+    public async Task<IActionResult> CreateTaskCategory(
+        TaskCategoryModel taskCategoryModel,
+        CancellationToken token)
+    {
+        try
+        {
+            var task = await _taskCategoryService.InsertTaskAsync(
+                taskCategoryModel.ToEntity(),
+                token);
+
+            return Ok(task);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(
+                (int)HttpStatusCode.InternalServerError,
+                new { ex.Message });
+        }
+    }
+
+    [HttpDelete("Category/{taskCategoryId}")]
+    public async Task<IActionResult> DeleteTaskCategoryAsync(
+        string taskCategoryId,
+        CancellationToken token)
+    {
+        try
+        {
+            await _taskCategoryService.DeleteTaskCategoryAsync(taskCategoryId, token);
+
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(
+                (int)HttpStatusCode.InternalServerError,
+                new { ex.Message });
+        }
+    }
+
+    [HttpGet("Category/{taskCategoryId}")]
+    public async Task<IActionResult> GetTaskCategoryAsync(
+        string taskCategoryId,
+        CancellationToken token)
+    {
+        try
+        {
+            var schedule = await _taskCategoryService.GetTaskCategoryAsync(
+                taskCategoryId,
+                token);
+
+            return Ok(schedule);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(
+                (int)HttpStatusCode.InternalServerError,
+                new
+                {
+                    ex.Message
+                });
+        }
+    }
+
+    [HttpGet("Category")]
+    public async Task<IActionResult> GetTaskCategoriesAsync(
+        CancellationToken token)
+    {
+        try
+        {
+            var tasks = await _taskCategoryService.GetTaskCategoriesAsync(
+                token);
+
+            return Ok(tasks);
         }
         catch (Exception ex)
         {

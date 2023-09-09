@@ -7,4 +7,7 @@ public class MongoConstants
     public const string ScheduleCollectionName = "Schedule";
     public const string TaskCollectionName = "Task";
     public const string HistoryCollectionName = "History";
+    public const string TaskCategoryCollectionName = "TaskCategory";
+    public const string ScheduleCategoryCollectionName = "ScheduleCategory";
+
 }

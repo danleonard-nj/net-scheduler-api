@@ -1,4 +1,6 @@
-﻿namespace NetScheduler.Data.Entities;
+﻿using NetScheduler.Data.Entities;
+
+namespace NetScheduler.Models.Tasks;
 public class ScheduleTypeItem : MongoBase
 {
     public string ScheduleTypeId { get; set; } = null!;

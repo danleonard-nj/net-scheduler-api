@@ -6,7 +6,6 @@ using NetScheduler.Data.Constants;
 using NetScheduler.Data.Entities;
 using System.Linq.Expressions;
 
-
 public class TaskRepository : ITaskRepository
 {
     private readonly IMongoDatabase _database;

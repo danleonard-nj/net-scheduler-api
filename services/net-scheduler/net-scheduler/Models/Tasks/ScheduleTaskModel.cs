@@ -6,6 +6,8 @@ public class TaskModel
 {
     public string TaskId { get; set; } = null!;
 
+    public string? CategoryId { get; set; }
+
     public string TaskName { get; set; } = null!;
 
     public string Endpoint { get; set; } = null!;
