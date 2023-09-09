@@ -66,9 +66,25 @@ public class TaskService : ITaskService
         ArgumentNullException.ThrowIfNull(createTaskModel, nameof(createTaskModel));
 
         _logger.LogInformation(
-            "{@Method}: {@CreateTaskModel}: Creating task",
+            "{@Method}: {@CreateTaskModel}: Create task",
             Caller.GetName(),
             createTaskModel);
+
+        // Verify task name is provided
+        if (string.IsNullOrEmpty(createTaskModel.TaskName))
+        {
+            throw new InvalidTaskException("Task name is required");
+        }
+
+        var existingTask = await _taskRepository.GetTaskByNameAsync(
+            createTaskModel.TaskName,
+            token);
+        
+        // Verify task name is unique
+        if (existingTask != null)
+        {
+            throw new InvalidTaskException($"A task with the name '{createTaskModel.TaskName}' already exists");
+        }
 
         var scheduleTaskModel = createTaskModel.ToDomain();
 

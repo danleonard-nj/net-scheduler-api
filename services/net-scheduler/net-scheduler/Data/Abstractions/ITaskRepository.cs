@@ -12,4 +12,8 @@ public interface ITaskRepository : IMongoRepository<TaskItem>
     Task<IEnumerable<TaskItem>> Query(
         Expression<Func<TaskItem, bool>> query,
         CancellationToken token);
+
+    Task<TaskItem?> GetTaskByNameAsync(
+        string taskName,
+        CancellationToken cancellationToken);
 }

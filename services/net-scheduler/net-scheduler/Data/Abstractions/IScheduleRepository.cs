@@ -16,4 +16,8 @@ public interface IScheduleRepository
     Task<ScheduleItem> Replace(ScheduleItem entity, CancellationToken token);
 
     Task<IEnumerable<ScheduleItem>> Query(Expression<Func<ScheduleItem, bool>> query, CancellationToken token);
+
+    Task<ScheduleItem> GetScheduleByNameAsync(
+        string scheduleName,
+        CancellationToken cancellationToken);
 }

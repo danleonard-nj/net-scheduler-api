@@ -5,8 +5,6 @@ using NetScheduler.Clients.Abstractions;
 using NetScheduler.Clients.Constants;
 using NetScheduler.Configuration;
 using NetScheduler.Data.Abstractions;
-using NetScheduler.Models.Cache;
-using NetScheduler.Models.Features;
 using NetScheduler.Models.History;
 using NetScheduler.Models.Schedules;
 using NetScheduler.Models.Tasks;
@@ -58,26 +56,18 @@ public class ScheduleService : IScheduleService
     }
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
-    {
-        PollState.SetPolling(false);
-
-        var startTimestamp = DateTimeOffset.UtcNow;
-
-        var evaluatedFeatures = await GetPollFeatureFlagDetailsAsync(
-            token);
-
-        // TODO: Reference result model props directly
-        var isEnabled = evaluatedFeatures.IsSchedulerEnabled;
-        var calcDisplayEnabled = evaluatedFeatures.IsCalculationDetailEnabled;
-        var historyEnabled = evaluatedFeatures.IsHistoryEnabled;
-        var forceCalculate = evaluatedFeatures.IsForceCalculateTimestampsEnabled;
+    { 
+        var startTimestamp = DateTimeOffset.Now;
 
         _logger.LogInformation(
-              "{@Method}: {@IsSchedulerEnabled}: {@IsCalculationDisplayEnabled}: {@IsScheduleHistoryEnabled}: Feature flags",
-              Caller.GetName(),
-              isEnabled,
-              calcDisplayEnabled,
-              historyEnabled);
+            "{@Method}: Starting scheduler poll at: {@StartTimestamp}",
+            Caller.GetName(),
+            startTimestamp);
+
+        // Verify the scheduler feature is enabled
+        var isEnabled = await _featureClient.EvaluateFeature(
+            Feature.NetScheduler,
+            token);
 
         if (!isEnabled)
         {
@@ -86,15 +76,6 @@ public class ScheduleService : IScheduleService
                Caller.GetName());
 
             return Enumerable.Empty<TaskExecutionResult>();
-        }
-
-        if (forceCalculate)
-        {
-            _logger.LogInformation(
-              "{@Method}: Force updating schedule timestamps",
-              Caller.GetName());
-
-            await ForceUpdateScheduleTimestamps(token);
         }
 
         // Get all currently active schedules
@@ -108,6 +89,7 @@ public class ScheduleService : IScheduleService
            Caller.GetName(),
            activeSchedules.Count());
 
+        // Evaluate each schedule to determine if it is triggered
         foreach (var schedule in activeSchedules)
         {
             try
@@ -116,16 +98,14 @@ public class ScheduleService : IScheduleService
                     schedule,
                     token);
 
-                if (calcDisplayEnabled)
-                {
-                    _logger.LogInformation(
-                        "{@Method}: {@ScheduleId}: {@ScheduleName}: {@IsTriggered}: {@TimeRemaining}: Schedule trigger state",
-                        Caller.GetName(),
-                        schedule.ScheduleId,
-                        schedule.ScheduleName,
-                        isTriggered,
-                        schedule.GetTimeRemaining());
-                }
+
+                _logger.LogInformation(
+                    "{@Method}: {@ScheduleId}: {@ScheduleName}: {@IsTriggered}: {@TimeRemaining}: Schedule trigger state",
+                    Caller.GetName(),
+                    schedule.ScheduleId,
+                    schedule.ScheduleName,
+                    isTriggered,
+                    schedule.GetTimeRemaining());
 
                 // If the schedule is triggered add to the
                 // execution queue
@@ -139,7 +119,8 @@ public class ScheduleService : IScheduleService
                         isTriggered,
                         schedule.GetTimeRemaining());
 
-                    executionQueue.Add(schedule.ToTriggeredScheduleModel());
+                    var triggeredSchedule = schedule.ToTriggeredScheduleModel();
+                    executionQueue.Add(triggeredSchedule);
                 }
             }
             catch (Exception ex)
@@ -165,7 +146,6 @@ public class ScheduleService : IScheduleService
 
             await RunTriggeredSchedulesAsync(
                 executionQueue,
-                historyEnabled,
                 token);
         }
 
@@ -184,7 +164,7 @@ public class ScheduleService : IScheduleService
 
         return executionQueue.SelectMany(x => x.Schedule.Links).Select(x => new TaskExecutionResult(x));
     }
-  
+
 
     public async Task<ScheduleModel> GetSchedule(
         string scheduleId,
@@ -229,9 +209,21 @@ public class ScheduleService : IScheduleService
             Caller.GetName(),
             createScheduleModel);
 
+
+        // Verify schedule name is defined
         if (string.IsNullOrWhiteSpace(createScheduleModel.ScheduleName))
         {
             throw new InvalidScheduleException("Schedule name cannot be null");
+        }
+
+        // Verify schedule with the same name does not already exist
+        var existingSchedule = await _scheduleRepository.GetScheduleByNameAsync(
+            createScheduleModel.ScheduleName,
+            token);
+
+        if (existingSchedule != null)
+        {
+            throw new InvalidScheduleException($"Schedule with the name '{createScheduleModel.ScheduleName}' already exists");
         }
 
         // TODO: Move to extension
@@ -251,13 +243,13 @@ public class ScheduleService : IScheduleService
         };
 
         _logger.LogInformation(
-            "{@Method}: {@ScheduleId}: {@ScheduleName}: Schedule created",
+            "{@Method}: {@Schedule}: Schedule created",
             Caller.GetName(),
-            schedule?.ScheduleId,
-            schedule?.ScheduleName);
+            schedule);
 
+        // Insert the new schedule entity
         await _scheduleRepository.Insert(
-            schedule.ToEntity(),
+            schedule!.ToEntity(),
             token);
 
         return schedule;
@@ -337,21 +329,6 @@ public class ScheduleService : IScheduleService
         }
 
         var existingSchedule = existingEntity.ToDomain();
-
-        //// TODO: Move to extension
-        //entity.ScheduleName = scheduleModel.ScheduleName;
-        //entity.IsActive = scheduleModel.IsActive;
-
-        //entity.Cron = scheduleModel.Cron;
-        //entity.IncludeSeconds = scheduleModel.IncludeSeconds;
-        //entity.Links = scheduleModel.Links;
-
-        //// Clear timestamps to be recalculated
-        //entity.NextRuntime = default;
-        //entity.Queue = Enumerable.Empty<int>();
-
-        //entity.LastRuntime = scheduleModel.LastRuntime;
-        //entity.ModifiedDate = DateTime.Now;
 
         var updatedSchedule = existingSchedule.UpdateScheduleDetails(
             scheduleModel);
@@ -456,7 +433,6 @@ public class ScheduleService : IScheduleService
 
         await RunTriggeredSchedulesAsync(
             new[] { manualTriggeredSchedule },
-            isHistoryEnabled,
             cancellationToken);
     }
 
@@ -498,25 +474,6 @@ public class ScheduleService : IScheduleService
         }
 
         return (false, schedule);
-    }
-
-    private async Task ForceUpdateScheduleTimestamps(
-        CancellationToken token)
-    {
-        var scheduleEntities = await _scheduleRepository
-            .GetAll(token);
-
-        var allSchedulees = scheduleEntities
-            .Select(x => x.ToDomain());
-
-        foreach (var forceUpdateSchedule in allSchedulees)
-        {
-            var updaatedSchedule = UpdateScheduleRuntimes(forceUpdateSchedule);
-
-            await _scheduleRepository.Replace(
-                updaatedSchedule.ToEntity(),
-                token);
-        }
     }
 
     private ScheduleModel UpdateScheduleRuntimes(
@@ -565,9 +522,11 @@ public class ScheduleService : IScheduleService
 
     private async Task<IEnumerable<ScheduleModel>> RunTriggeredSchedulesAsync(
         IEnumerable<TriggeredScheduleModel> triggeredSchedules,
-        bool isHistoryEnabled = true,
         CancellationToken token = default)
     {
+        ArgumentNullException.ThrowIfNull(triggeredSchedules, nameof(triggeredSchedules));
+
+        // Get all triggered schedules
         var allTriggeredSchedules = triggeredSchedules
             .Select(x => x.Schedule);
 
@@ -580,27 +539,34 @@ public class ScheduleService : IScheduleService
         var schedules = triggeredSchedules
             .Where(x => x.Schedule.Links.Any());
 
-        var links = schedules
+        // All the distinct linked tasks from triggered schedules
+        var scheduleLinks = schedules
             .SelectMany(x => x.Schedule.Links)
             .Distinct();
 
         // If no triggered schedules have linked tasks
-        if (!links.Any())
+        if (!scheduleLinks.Any())
         {
+
+            _logger.LogInformation(
+                "{@Method}: {@Schedules}: No tasks to invoke in triggered schedules",
+                Caller.GetName(),
+                schedules?.Select(x => x.Schedule.ScheduleName));
+
             return allTriggeredSchedules;
         }
 
         _logger.LogInformation(
             "{@Method}: {@Links}: Triggered schedule linked tasks",
             Caller.GetName(),
-            links);
+            scheduleLinks);
 
+        // Execute the triggered schedule tasks
         var tasks = await _taskService.ExecuteTasksAsync(
-            links,
+            scheduleLinks,
             token);
 
-        // Purposely not awaiting this call to avoid blocking
-        // TODO: Configure await necessary here?
+        // Store the schedule invocation history
         await HandleSchedulerHistoryAsync(
             schedules,
             tasks);
@@ -648,14 +614,14 @@ public class ScheduleService : IScheduleService
                 IsManualTrigger = schedule.IsManual,
                 ScheduleName = schedule.Schedule.ScheduleName,
                 Tasks = invocationTasks,
-                CreatedDate = GetTimestamp()
+                CreatedDate = (int)DateTimeOffset.Now.ToUnixTimeSeconds()
             };
 
             history.Add(invocation);
         }
 
         await _eventService
-            .DispatchScheduleHistoryEventAsync(history,cancellationToken)
+            .DispatchScheduleHistoryEventAsync(history, cancellationToken)
             .ConfigureAwait(false);
 
         return history;
@@ -672,51 +638,6 @@ public class ScheduleService : IScheduleService
             .ToList();
 
         return activeSchedules.Select(x => x.ToDomain());
-    }
-
-    private static int GetTimestamp()
-    {
-        return (int)DateTimeOffset.Now.ToUnixTimeSeconds();
-    }
-
-    private async Task<FeatureEvaluationResult> GetPollFeatureFlagDetailsAsync(
-        CancellationToken cancellationToken = default)
-    {
-        var evaluatedFeatures = await _cacheService.GetAsync<FeatureEvaluationResult>(
-            CacheKey.FeatureFlags());
-
-        if (evaluatedFeatures != null)
-        {
-            return evaluatedFeatures;
-        }
-
-        // Fetch flags in parallel
-        var results = await Task.WhenAll(
-            _featureClient.EvaluateFeature(
-                Feature.NetScheduler,
-                cancellationToken),
-            _featureClient.EvaluateFeature(
-                Feature.SchedulerConsoleDisplayCalculationDetails,
-                cancellationToken),
-            _featureClient.EvaluateFeature(
-                Feature.SchedulerExecutionHistory, 
-                cancellationToken),
-            _featureClient.EvaluateFeature(
-                Feature.NetSchedulerCalculateTimestamps,
-                cancellationToken));
-
-        evaluatedFeatures = new FeatureEvaluationResult(
-            results[0],
-            results[1],
-            results[2],
-            results[3]);
-
-        await _cacheService.SetAsync(
-            CacheKey.FeatureFlags(),
-            evaluatedFeatures,
-            30);
-
-        return evaluatedFeatures;
     }
 
     private async Task InitializeScheduleAsync(

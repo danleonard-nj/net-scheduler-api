@@ -75,4 +75,18 @@ public class ScheduleRepository : IMongoRepository<ScheduleItem>, IScheduleRepos
 
         return result;
     }
+
+    public async Task<ScheduleItem> GetScheduleByNameAsync(
+        string scheduleName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(scheduleName))
+        {
+            throw new ArgumentNullException(nameof(scheduleName));
+        }
+
+        return await _query
+            .Where(x => x.ScheduleName == scheduleName)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

@@ -98,4 +98,22 @@ public class TaskRepository : ITaskRepository
 
         return result;
     }
+
+    public async Task<TaskItem?> GetTaskByNameAsync(
+        string taskName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(taskName))
+        {
+            throw new ArgumentNullException(nameof(taskName));
+        }
+
+        var queryFilter = Builders<TaskItem>
+            .Filter
+            .Eq(x => x.TaskName, taskName);
+
+        return await _collection
+            .Find(queryFilter)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }
