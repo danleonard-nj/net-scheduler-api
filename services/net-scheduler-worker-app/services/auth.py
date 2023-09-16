@@ -48,6 +48,6 @@ class AuthClient:
         token = response.json().get('access_token')
 
         # Set the token in memory cache
-        self.__memory_cache.set('token', token, 60)
+        self.__memory_cache.set('auth-client-token', token, 60)
 
         return token

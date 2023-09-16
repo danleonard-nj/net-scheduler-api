@@ -24,11 +24,11 @@ class ProcessorService:
 
         while True:
             try:
-                logger.info('Polling scheduler')
                 await self.__scheduler_service.poll_scheduler()
 
                 logger.info(
-                    f'Waiting {self.__scheduler_config.interval} seconds')
+                    f'Sleeping for {self.__scheduler_config.interval} seconds')
+                    
                 await asyncio.sleep(self.__scheduler_config.interval)
 
             except Exception as e:
