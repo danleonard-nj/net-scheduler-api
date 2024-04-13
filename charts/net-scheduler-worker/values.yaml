@@ -1,5 +1,8 @@
 replicaCount: 1
 
+podAnnotations:
+  fluenbit.io/exclude: "true"
+
 image:
   repository: azureks.azurecr.io/kube-tools/net-scheduler-worker
   pullPolicy: Always
