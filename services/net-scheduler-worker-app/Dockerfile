@@ -1,4 +1,4 @@
-FROM python:3.11-sli
+FROM python:3.11-slim
 
 ARG ARTIFACT_FEED=py-packages
 ARG ARTIFACT_FEED_TOKEN
