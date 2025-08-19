@@ -1,12 +1,11 @@
 import json
 
 import httpx
+from domain.models import AuthConfig, SchedulerConfig
 from framework.caching.memory_cache import MemoryCache
 from framework.di.service_collection import ServiceCollection
 from framework.di.static_provider import ProviderBase
 from framework.logger import get_logger
-from domain.models import AuthConfig, SchedulerConfig
-
 from services.auth import AuthClient
 from services.processor import ProcessorService
 from services.scheduler import SchedulerService

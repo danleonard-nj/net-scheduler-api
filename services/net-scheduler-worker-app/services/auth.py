@@ -1,9 +1,8 @@
 import httpx
+from domain.models import AuthConfig, AuthRequest
 from framework.caching.memory_cache import MemoryCache
 from framework.logger import get_logger
 from framework.validators.nulls import none_or_whitespace
-
-from domain.models import AuthConfig, AuthRequest
 
 logger = get_logger(__name__)
 
@@ -15,15 +14,15 @@ class AuthClient:
         memory_cache: MemoryCache,
         auth_config: AuthConfig
     ):
-        self.__http_client = http_client
-        self.__memory_cache = memory_cache
-        self.__auth_config = auth_config
+        self._http_client = http_client
+        self._memory_cache = memory_cache
+        self._auth_config = auth_config
 
     async def get_token(
         self
     ):
         # Fetch token from memory cache
-        token = self.__memory_cache.get('auth-client-token')
+        token = self._memory_cache.get('auth-client-token')
 
         # Return the token if it exists
         if not none_or_whitespace(token):
@@ -32,10 +31,10 @@ class AuthClient:
 
         # Generate an auth request from config
         auth_request = AuthRequest.from_config(
-            data=self.__auth_config)
+            data=self._auth_config)
 
-        response = await self.__http_client.post(
-            url=self.__auth_config.identity_url,
+        response = await self._http_client.post(
+            url=self._auth_config.identity_url,
             data=auth_request.to_dict())
 
         # Failure to fetch the token
@@ -48,6 +47,6 @@ class AuthClient:
         token = response.json().get('access_token')
 
         # Set the token in memory cache
-        self.__memory_cache.set('auth-client-token', token, 60)
+        self._memory_cache.set('auth-client-token', token, 60)
 
         return token

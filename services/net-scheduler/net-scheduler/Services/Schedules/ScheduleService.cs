@@ -56,7 +56,7 @@ public class ScheduleService : IScheduleService
     }
 
     public async Task<IEnumerable<TaskExecutionResult>> Poll(CancellationToken token)
-    { 
+    {
         var startTimestamp = DateTimeOffset.Now;
 
         _logger.LogInformation(
@@ -486,7 +486,7 @@ public class ScheduleService : IScheduleService
         var expression = schedule.GetCronExpression();
 
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(
-            "America/Phoenix");
+            "America/New_York");
 
         var dateQueue = expression
             .GetOccurrences(

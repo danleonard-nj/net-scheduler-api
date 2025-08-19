@@ -14,8 +14,8 @@ class ProcessorService:
         scheduler_service: SchedulerService,
         scheduler_config: SchedulerConfig
     ):
-        self.__scheduler_service = scheduler_service
-        self.__scheduler_config = scheduler_config
+        self._scheduler_service = scheduler_service
+        self._scheduler_config = scheduler_config
 
     async def run(
         self
@@ -24,12 +24,12 @@ class ProcessorService:
 
         while True:
             try:
-                await self.__scheduler_service.poll_scheduler()
+                await self._scheduler_service.poll_scheduler()
 
                 logger.info(
-                    f'Sleeping for {self.__scheduler_config.interval} seconds')
-                    
-                await asyncio.sleep(self.__scheduler_config.interval)
+                    f'Sleeping for {self._scheduler_config.interval} seconds')
+
+                await asyncio.sleep(self._scheduler_config.interval)
 
             except Exception as e:
                 logger.exception(e)

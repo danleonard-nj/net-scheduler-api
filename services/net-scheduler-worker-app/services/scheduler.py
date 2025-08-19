@@ -1,7 +1,6 @@
 import httpx
-from framework.logger import get_logger
-
 from domain.models import SchedulerConfig
+from framework.logger import get_logger
 from services.auth import AuthClient
 
 logger = get_logger(__name__)
@@ -14,21 +13,21 @@ class SchedulerService:
         auth_client: AuthClient,
         scheduler_config: SchedulerConfig
     ):
-        self.__http_client = http_client
-        self.__auth_client = auth_client
-        self.__scheduler_config = scheduler_config
+        self._http_client = http_client
+        self._auth_client = auth_client
+        self._scheduler_config = scheduler_config
 
     async def poll_scheduler(
         self
     ):
-        endpoint = f'{self.__scheduler_config.base_url}/api/scheduler/schedule/poll'
+        endpoint = f'{self._scheduler_config.base_url}/api/scheduler/schedule/poll'
         logger.info(f'Polling scheduler: {endpoint}')
 
         logger.info(f'Generating headers')
-        headers = await self.__get_headers()
+        headers = await self._get_headers()
 
         logger.info(f'Polling net scheduler: {endpoint}')
-        response = await self.__http_client.get(
+        response = await self._http_client.get(
             endpoint,
             headers=headers)
 
@@ -37,11 +36,11 @@ class SchedulerService:
 
         return response.json()
 
-    async def __get_headers(
+    async def _get_headers(
         self
     ):
         logger.info(f'Fetching token')
-        token = await self.__auth_client.get_token()
+        token = await self._auth_client.get_token()
 
         return {
             'Authorization': f'Bearer {token}'

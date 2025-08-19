@@ -1,7 +1,6 @@
 import asyncio
 
 from framework.logger import get_logger
-
 from services.processor import ProcessorService
 from utilities.utils import ContainerProvider
 
