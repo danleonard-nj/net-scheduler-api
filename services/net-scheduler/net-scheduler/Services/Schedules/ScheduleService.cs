@@ -485,14 +485,11 @@ public class ScheduleService : IScheduleService
         // Parse the schedule cron expression
         var expression = schedule.GetCronExpression();
 
-        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(
-            "America/New_York");
-
         var dateQueue = expression
             .GetOccurrences(
                 DateTime.UtcNow,
                 DateTime.UtcNow + TimeSpan.FromDays(7),
-                timeZone);
+                TimeZoneInfo.Utc);
 
         var queue = dateQueue.Select(x => (int)new DateTimeOffset(x)
             .ToUnixTimeSeconds());

@@ -88,7 +88,7 @@ public static class ScheduleExtensions
         source.Queue = Enumerable.Empty<int>();
 
         source.LastRuntime = updated.LastRuntime;
-        source.ModifiedDate = DateTime.Now;
+        source.ModifiedDate = DateTime.UtcNow;
 
         return source;
     }
