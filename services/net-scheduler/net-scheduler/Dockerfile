@@ -18,8 +18,9 @@ RUN dotnet publish "net-scheduler.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
+EXPOSE 80
+ENV ASPNETCORE_HTTP_PORTS=80
 COPY --from=publish /app/publish .
 
-RUN apt-get update -
 RUN apt-get update && apt-get dist-upgrade -y
 ENTRYPOINT ["dotnet", "net-scheduler.dll"]
