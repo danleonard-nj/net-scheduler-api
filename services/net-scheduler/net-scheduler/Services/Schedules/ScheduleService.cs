@@ -489,7 +489,7 @@ public class ScheduleService : IScheduleService
             .GetOccurrences(
                 DateTime.UtcNow,
                 DateTime.UtcNow + TimeSpan.FromDays(7),
-                TimeZoneInfo.Utc);
+                TimeZoneInfo.FindSystemTimeZoneById("America/New_York"));
 
         var queue = dateQueue.Select(x => (int)new DateTimeOffset(x)
             .ToUnixTimeSeconds());
